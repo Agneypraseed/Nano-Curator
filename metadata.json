@@ -1,0 +1,9 @@
+{
+  "name": "Nano Curator",
+  "description": "AI-powered personal stylist that suggests outfits and haircuts based on your photo using Google Gemini Nano Banana.",
+  "requestFramePermissions": [
+    "camera"
+  ],
+  "y7": [],
+  "Yp": []
+}
