@@ -4,9 +4,10 @@ import { Plus, Image as ImageIcon } from 'lucide-react';
 interface ImageUploaderProps {
   onImageSelected: (base64: string) => void;
   compact?: boolean;
+  label?: string;
 }
 
-export const ImageUploader: React.FC<ImageUploaderProps> = ({ onImageSelected, compact = false }) => {
+export const ImageUploader: React.FC<ImageUploaderProps> = ({ onImageSelected, compact = false, label = 'Upload image' }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const processFile = (file: File) => {
@@ -31,11 +32,12 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({ onImageSelected, c
   if (compact) {
     return (
       <button 
+        type="button"
         onClick={() => fileInputRef.current?.click()}
-        className="w-full h-32 md:h-40 border-2 border-dashed border-slate-300 rounded-2xl flex flex-col items-center justify-center text-slate-400 hover:border-indigo-500 hover:text-indigo-500 hover:bg-indigo-50 transition-all"
+        className="flex h-32 w-full flex-col items-center justify-center rounded-3xl border-2 border-dashed border-slate-300 text-slate-400 transition-all hover:border-indigo-500 hover:bg-indigo-50 hover:text-indigo-500 md:h-40"
       >
         <Plus className="w-8 h-8 mb-2" />
-        <span className="text-xs font-medium">Add Photo</span>
+        <span className="text-xs font-medium">{label}</span>
         <input ref={fileInputRef} type="file" className="hidden" accept="image/*" onChange={handleChange} />
       </button>
     );
@@ -44,10 +46,10 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({ onImageSelected, c
   return (
     <div 
       onClick={() => fileInputRef.current?.click()}
-      className="w-full h-48 border-2 border-dashed border-slate-300 rounded-2xl flex flex-col items-center justify-center text-slate-400 hover:border-indigo-500 hover:text-indigo-500 hover:bg-indigo-50 transition-all cursor-pointer"
+      className="flex h-48 w-full cursor-pointer flex-col items-center justify-center rounded-3xl border-2 border-dashed border-slate-300 text-slate-400 transition-all hover:border-indigo-500 hover:bg-indigo-50 hover:text-indigo-500"
     >
         <ImageIcon className="w-8 h-8 mb-2" />
-        <span className="text-sm font-medium">Upload Reference Image</span>
+        <span className="text-sm font-medium">{label}</span>
         <input ref={fileInputRef} type="file" className="hidden" accept="image/*" onChange={handleChange} />
     </div>
   );
