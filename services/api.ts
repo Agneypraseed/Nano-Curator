@@ -1,4 +1,4 @@
-import { StyleAnalysis, WizardState } from '../types';
+import { LookTransformResult, StyleAnalysis, StyleOption, WizardState } from '../types';
 
 interface SessionPayload {
   analysis: StyleAnalysis;
@@ -35,4 +35,17 @@ export const regenerateStyleImage = (identityImage: string, prompt: string, isHa
     identityImage,
     prompt,
     isHaircut,
+  });
+
+export const transformLook = (
+  wizardData: WizardState,
+  identityImage: string,
+  style: StyleOption,
+  instruction: string,
+) =>
+  postJson<LookTransformResult>('/api/transform-look', {
+    wizardData,
+    identityImage,
+    style,
+    instruction,
   });

@@ -3,6 +3,8 @@ import {
   AlertCircle,
   ArrowLeftRight,
   Briefcase,
+  ClipboardCopy,
+  Download,
   Leaf,
   Printer,
   RefreshCw,
@@ -11,6 +13,8 @@ import {
   Share2,
   Sparkles,
   Star,
+  CloudSun,
+  Shirt,
 } from 'lucide-react';
 import Button from '../Button';
 import { LookCard } from './LookCard';
@@ -23,6 +27,7 @@ interface ResultsPageProps {
   favorites: string[];
   compareLookIds: string[];
   refreshingLookId: string | null;
+  editingLookKey: string | null;
   isGeneratingMore: boolean;
   sessions: SessionRecord[];
   onNewSession: () => void;
@@ -30,8 +35,11 @@ interface ResultsPageProps {
   onToggleFavorite: (lookId: string) => void;
   onToggleCompare: (lookId: string) => void;
   onRefreshImage: (lookId: string) => void;
+  onTransformLook: (lookId: string, label: string, instruction: string) => void;
   onPrint: () => void;
   onShare: () => void;
+  onCopyBrief: () => void;
+  onDownloadBrief: () => void;
 }
 
 const findLook = (styles: StyleOption[], lookId: string) => styles.find((style) => style.id === lookId);
@@ -43,6 +51,7 @@ export const ResultsPage: React.FC<ResultsPageProps> = ({
   favorites,
   compareLookIds,
   refreshingLookId,
+  editingLookKey,
   isGeneratingMore,
   sessions,
   onNewSession,
@@ -50,8 +59,11 @@ export const ResultsPage: React.FC<ResultsPageProps> = ({
   onToggleFavorite,
   onToggleCompare,
   onRefreshImage,
+  onTransformLook,
   onPrint,
   onShare,
+  onCopyBrief,
+  onDownloadBrief,
 }) => {
   const bestLook = findLook(analysis.styles, analysis.summary.bestLookId) ?? analysis.styles[0];
   const compareLooks = compareLookIds.map((lookId) => findLook(analysis.styles, lookId)).filter(Boolean) as StyleOption[];
@@ -110,6 +122,14 @@ export const ResultsPage: React.FC<ResultsPageProps> = ({
               <Share2 className="mr-2 h-4 w-4" />
               Share summary
             </Button>
+            <Button variant="outline" onClick={onCopyBrief} className="border-white/20 text-white hover:bg-white/10">
+              <ClipboardCopy className="mr-2 h-4 w-4" />
+              Copy brief
+            </Button>
+            <Button variant="outline" onClick={onDownloadBrief} className="border-white/20 text-white hover:bg-white/10">
+              <Download className="mr-2 h-4 w-4" />
+              Download brief
+            </Button>
             <Button variant="outline" onClick={onNewSession} className="border-white/20 text-white hover:bg-white/10">
               <RotateCcw className="mr-2 h-4 w-4" />
               New session
@@ -117,6 +137,69 @@ export const ResultsPage: React.FC<ResultsPageProps> = ({
           </div>
         </div>
       </section>
+
+      {(analysis.weatherContext || analysis.wardrobeSummary) && (
+        <section className="grid gap-6 lg:grid-cols-2">
+          {analysis.weatherContext && analysis.weatherContext.source !== 'none' && (
+            <div className="rounded-[2rem] border border-sky-200 bg-sky-50 p-6 shadow-sm">
+              <div className="mb-4 flex items-center gap-2">
+                <CloudSun className="h-5 w-5 text-sky-700" />
+                <h2 className="text-xl font-semibold text-slate-900">Weather context</h2>
+              </div>
+              <div className="space-y-2 text-sm leading-6 text-slate-700">
+                <p><span className="font-medium">Source:</span> {analysis.weatherContext.source}</p>
+                <p><span className="font-medium">Location:</span> {analysis.weatherContext.location}</p>
+                <p><span className="font-medium">Summary:</span> {analysis.weatherContext.summary}</p>
+                {analysis.weatherContext.temperatureBand && (
+                  <p><span className="font-medium">Temperature band:</span> {analysis.weatherContext.temperatureBand}</p>
+                )}
+              </div>
+              {analysis.weatherContext.stylingNotes.length > 0 && (
+                <ul className="mt-4 space-y-2 text-sm text-slate-700">
+                  {analysis.weatherContext.stylingNotes.map((item) => (
+                    <li key={item}>- {item}</li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          )}
+
+          {analysis.wardrobeSummary && (
+            <div className="rounded-[2rem] border border-amber-200 bg-amber-50 p-6 shadow-sm">
+              <div className="mb-4 flex items-center gap-2">
+                <Shirt className="h-5 w-5 text-amber-700" />
+                <h2 className="text-xl font-semibold text-slate-900">Wardrobe reuse plan</h2>
+              </div>
+              <div className="grid gap-5 md:grid-cols-3">
+                <div>
+                  <h3 className="mb-2 text-sm font-semibold uppercase tracking-[0.2em] text-amber-900">Detected pieces</h3>
+                  <ul className="space-y-2 text-sm text-slate-700">
+                    {analysis.wardrobeSummary.detectedPieces.map((item) => (
+                      <li key={item}>{item}</li>
+                    ))}
+                  </ul>
+                </div>
+                <div>
+                  <h3 className="mb-2 text-sm font-semibold uppercase tracking-[0.2em] text-amber-900">Reuse plan</h3>
+                  <ul className="space-y-2 text-sm text-slate-700">
+                    {analysis.wardrobeSummary.reusePlan.map((item) => (
+                      <li key={item}>{item}</li>
+                    ))}
+                  </ul>
+                </div>
+                <div>
+                  <h3 className="mb-2 text-sm font-semibold uppercase tracking-[0.2em] text-amber-900">Gap pieces</h3>
+                  <ul className="space-y-2 text-sm text-slate-700">
+                    {analysis.wardrobeSummary.gapPieces.map((item) => (
+                      <li key={item}>{item}</li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+            </div>
+          )}
+        </section>
+      )}
 
       {compareLooks.length === 2 && (
         <section className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm">
@@ -165,7 +248,7 @@ export const ResultsPage: React.FC<ResultsPageProps> = ({
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h2 className="text-2xl font-semibold text-slate-950">Look set</h2>
-            <p className="text-sm text-slate-500">Select up to two looks for compare. Refresh any image without rerunning the full session.</p>
+            <p className="text-sm text-slate-500">Select up to two looks for compare. Refresh or transform any look without rerunning the full session.</p>
           </div>
           <Button variant="outline" onClick={onGenerateMore} isLoading={isGeneratingMore} loadingLabel="Generating more looks">
             <RefreshCw className={`mr-2 h-4 w-4 ${isGeneratingMore ? 'animate-spin' : ''}`} />
@@ -183,9 +266,11 @@ export const ResultsPage: React.FC<ResultsPageProps> = ({
               isSelectedForCompare={compareLookIds.includes(style.id)}
               disableCompare={!compareLookIds.includes(style.id) && compareLookIds.length >= 2}
               isRefreshing={refreshingLookId === style.id}
+              activeEditKey={editingLookKey}
               onToggleFavorite={onToggleFavorite}
               onToggleCompare={onToggleCompare}
               onRefreshImage={onRefreshImage}
+              onTransformLook={onTransformLook}
             />
           ))}
         </div>
@@ -320,8 +405,8 @@ export const ResultsPage: React.FC<ResultsPageProps> = ({
                 <p className="font-medium text-slate-900">{item.name}</p>
                 <p className="mt-2 text-sm text-slate-500">
                   {item.brand}
-                  {item.category ? ` · ${item.category}` : ''}
-                  {item.priceNote ? ` · ${item.priceNote}` : ''}
+                  {item.category ? ` - ${item.category}` : ''}
+                  {item.priceNote ? ` - ${item.priceNote}` : ''}
                 </p>
               </a>
             ))}

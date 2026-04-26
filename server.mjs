@@ -92,6 +92,13 @@ const handleApi = async (req, res) => {
       return true;
     }
 
+    if (req.method === 'POST' && req.url === '/api/transform-look') {
+      const { wizardData, identityImage, style, instruction } = await readJsonBody(req);
+      const payload = await gemini.transformLook(wizardData, identityImage, style, instruction);
+      sendJson(res, 200, payload);
+      return true;
+    }
+
     sendJson(res, 404, { error: 'Unknown API route' });
     return true;
   } catch (error) {

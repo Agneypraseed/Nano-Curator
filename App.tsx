@@ -4,19 +4,22 @@ import Button from './components/Button';
 import { HomePage } from './components/home/HomePage';
 import { ResultsPage } from './components/results/ResultsPage';
 import { ProfileWizard } from './components/wizard/ProfileWizard';
-import { generateStyleSession, regenerateStyleImage } from './services/api';
+import { generateStyleSession, regenerateStyleImage, transformLook } from './services/api';
 import { loadSessionHistory, removeSessionHistoryItem, upsertSessionHistory } from './utils/sessionHistory';
-import { AppStage, ReferenceTab, SessionRecord, StyleAnalysis, WizardState } from './types';
+import { AppStage, ReferenceTab, SessionRecord, StyleAnalysis, StyleOption, WizardState } from './types';
 
 const DEFAULT_WIZARD_DATA: WizardState = {
   userPhotos: [],
+  wardrobePhotos: [],
   goals: '',
   lifestyle: '',
   occasion: 'Interview',
   budget: 'mid-range',
+  budgetCap: '',
   climate: 'mild',
   dressCode: 'smart-casual',
   location: '',
+  weatherMode: 'auto',
   weatherNotes: '',
   preferredColors: '',
   avoidColors: '',
@@ -25,6 +28,20 @@ const DEFAULT_WIZARD_DATA: WizardState = {
   referenceUrl: '',
   includeHaircut: true,
   findOutfits: true,
+};
+
+const dedupeShopping = (styles: StyleOption[]) => {
+  const seen = new Set<string>();
+  return styles
+    .flatMap((style) => style.shoppingItems)
+    .filter((item) => {
+      const key = item.url || `${item.brand}-${item.name}`;
+      if (!key || seen.has(key)) {
+        return false;
+      }
+      seen.add(key);
+      return true;
+    });
 };
 
 export default function App() {
@@ -38,6 +55,7 @@ export default function App() {
   const [loadingMessage, setLoadingMessage] = useState('Building your style brief...');
   const [isGeneratingMore, setIsGeneratingMore] = useState(false);
   const [refreshingLookId, setRefreshingLookId] = useState<string | null>(null);
+  const [editingLookKey, setEditingLookKey] = useState<string | null>(null);
   const [sessionHistory, setSessionHistory] = useState<SessionRecord[]>([]);
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
   const [favoriteLookIds, setFavoriteLookIds] = useState<string[]>([]);
@@ -83,6 +101,19 @@ export default function App() {
     }));
   };
 
+  const handleAddWardrobePhoto = (base64: string) => {
+    if (wizardData.wardrobePhotos.length < 6) {
+      setWizardData((prev) => ({ ...prev, wardrobePhotos: [...prev.wardrobePhotos, base64] }));
+    }
+  };
+
+  const handleRemoveWardrobePhoto = (index: number) => {
+    setWizardData((prev) => ({
+      ...prev,
+      wardrobePhotos: prev.wardrobePhotos.filter((_, itemIndex) => itemIndex !== index),
+    }));
+  };
+
   const runGeneration = async (isMore = false) => {
     if (wizardData.userPhotos.length < 1 && !analysis) {
       setError('Please upload at least 1 photo.');
@@ -111,10 +142,10 @@ export default function App() {
         isMore && analysis
           ? {
               ...analysis,
+              weatherContext: payload.analysis.weatherContext,
+              wardrobeSummary: payload.analysis.wardrobeSummary,
               styles: [...analysis.styles, ...payload.analysis.styles],
-              shoppingList: payload.analysis.shoppingList?.length
-                ? [...(analysis.shoppingList ?? []), ...payload.analysis.shoppingList]
-                : analysis.shoppingList,
+              shoppingList: dedupeShopping([...analysis.styles, ...payload.analysis.styles]),
             }
           : payload.analysis;
 
@@ -183,6 +214,40 @@ export default function App() {
     }
   };
 
+  const handleTransformLook = async (lookId: string, label: string, instruction: string) => {
+    if (!analysis || wizardData.userPhotos.length < 1) {
+      return;
+    }
+
+    const targetStyle = analysis.styles.find((style) => style.id === lookId);
+    if (!targetStyle) {
+      return;
+    }
+
+    const key = `${lookId}:${label}`;
+    setEditingLookKey(key);
+    setError(null);
+
+    try {
+      const result = await transformLook(wizardData, wizardData.userPhotos[0], targetStyle, instruction);
+      const nextStyles = analysis.styles.map((style) => (style.id === lookId ? result.style : style));
+      const nextAnalysis: StyleAnalysis = {
+        ...analysis,
+        styles: nextStyles,
+        shoppingList: dedupeShopping(nextStyles),
+      };
+      const nextStyleImages = { ...styleImages, [lookId]: result.image };
+      setAnalysis(nextAnalysis);
+      setStyleImages(nextStyleImages);
+      persistSession(nextAnalysis, nextStyleImages, haircutImage, favoriteLookIds);
+    } catch (err) {
+      console.error(err);
+      setError(err instanceof Error ? err.message : 'Unable to update that look right now.');
+    } finally {
+      setEditingLookKey(null);
+    }
+  };
+
   const handleToggleFavorite = (lookId: string) => {
     if (!analysis) {
       return;
@@ -225,14 +290,43 @@ export default function App() {
     setSessionHistory(loadSessionHistory());
   };
 
+  const buildBriefText = (targetAnalysis: StyleAnalysis) => {
+    const bestLook = targetAnalysis.styles.find((style) => style.id === targetAnalysis.summary.bestLookId) ?? targetAnalysis.styles[0];
+    return [
+      `Nano Curator Brief`,
+      ``,
+      `Headline: ${targetAnalysis.summary.headline}`,
+      `Best look: ${bestLook?.title || 'N/A'}`,
+      `Why it leads: ${targetAnalysis.summary.bestLookReason}`,
+      `Next step: ${targetAnalysis.summary.nextStep}`,
+      ``,
+      `Profile`,
+      `- Face shape: ${targetAnalysis.faceShape}`,
+      `- Skin tone: ${targetAnalysis.skinTone}`,
+      `- Body analysis: ${targetAnalysis.bodyType}`,
+      targetAnalysis.weatherContext?.summary ? `- Weather: ${targetAnalysis.weatherContext.summary}` : '',
+      targetAnalysis.weatherContext?.temperatureBand ? `- Temperature band: ${targetAnalysis.weatherContext.temperatureBand}` : '',
+      ``,
+      `Looks`,
+      ...targetAnalysis.styles.flatMap((style, index) => [
+        `${index + 1}. ${style.title}`,
+        `Description: ${style.description}`,
+        `Why it works: ${style.reasoning}`,
+        style.wardrobeAnchors.length > 0 ? `Owned pieces to reuse: ${style.wardrobeAnchors.join(', ')}` : '',
+        style.shoppingItems.length > 0 ? `Products: ${style.shoppingItems.map((item) => `${item.brand} - ${item.name}`).join('; ')}` : '',
+        ``,
+      ]),
+    ]
+      .filter(Boolean)
+      .join('\n');
+  };
+
   const handleShare = async () => {
     if (!analysis) {
       return;
     }
 
-    const bestLook = analysis.styles.find((style) => style.id === analysis.summary.bestLookId) ?? analysis.styles[0];
-    const shareText = `${analysis.summary.headline}\n\nBest look: ${bestLook?.title}\n${analysis.summary.bestLookReason}`;
-
+    const shareText = buildBriefText(analysis);
     if (navigator.share) {
       await navigator.share({
         title: 'Nano Curator style summary',
@@ -242,7 +336,30 @@ export default function App() {
     }
 
     await navigator.clipboard.writeText(shareText);
-    setError('Summary copied to clipboard.');
+    setError('Full brief copied to clipboard.');
+  };
+
+  const handleCopyBrief = async () => {
+    if (!analysis) {
+      return;
+    }
+
+    await navigator.clipboard.writeText(buildBriefText(analysis));
+    setError('Full brief copied to clipboard.');
+  };
+
+  const handleDownloadBrief = () => {
+    if (!analysis) {
+      return;
+    }
+
+    const blob = new Blob([buildBriefText(analysis)], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = 'nano-curator-brief.txt';
+    anchor.click();
+    URL.revokeObjectURL(url);
   };
 
   const handleReset = () => {
@@ -329,6 +446,8 @@ export default function App() {
             onChange={(patch) => setWizardData((prev) => ({ ...prev, ...patch }))}
             onAddUserPhoto={handleAddUserPhoto}
             onRemoveUserPhoto={handleRemoveUserPhoto}
+            onAddWardrobePhoto={handleAddWardrobePhoto}
+            onRemoveWardrobePhoto={handleRemoveWardrobePhoto}
             onGenerate={handleGenerate}
           />
         )}
@@ -343,6 +462,7 @@ export default function App() {
             favorites={favoriteLookIds}
             compareLookIds={compareLookIds}
             refreshingLookId={refreshingLookId}
+            editingLookKey={editingLookKey}
             isGeneratingMore={isGeneratingMore}
             sessions={sessionHistory}
             onNewSession={handleReset}
@@ -350,8 +470,11 @@ export default function App() {
             onToggleFavorite={handleToggleFavorite}
             onToggleCompare={handleToggleCompare}
             onRefreshImage={handleRefreshLook}
+            onTransformLook={handleTransformLook}
             onPrint={() => window.print()}
             onShare={handleShare}
+            onCopyBrief={handleCopyBrief}
+            onDownloadBrief={handleDownloadBrief}
           />
         )}
       </main>

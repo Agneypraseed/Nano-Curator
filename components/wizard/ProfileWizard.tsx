@@ -1,5 +1,5 @@
 import React from 'react';
-import { Link as LinkIcon, Palette, ShoppingBag, Sparkles, Scissors, X } from 'lucide-react';
+import { CloudSun, Coins, Link as LinkIcon, Palette, Shirt, ShoppingBag, Sparkles, Scissors, X } from 'lucide-react';
 import { ImageUploader } from '../ImageUploader';
 import Button from '../Button';
 import {
@@ -7,6 +7,7 @@ import {
   ClimatePreference,
   DressCodePreference,
   ReferenceTab,
+  WeatherMode,
   WizardState,
 } from '../../types';
 
@@ -18,6 +19,8 @@ interface ProfileWizardProps {
   onChange: (patch: Partial<WizardState>) => void;
   onAddUserPhoto: (base64: string) => void;
   onRemoveUserPhoto: (index: number) => void;
+  onAddWardrobePhoto: (base64: string) => void;
+  onRemoveWardrobePhoto: (index: number) => void;
   onGenerate: () => void;
 }
 
@@ -25,6 +28,7 @@ const occasionSuggestions = ['Interview', 'Wedding guest', 'Creative office', 'C
 const budgetOptions: BudgetLevel[] = ['thrift', 'mid-range', 'premium', 'mixed'];
 const climateOptions: ClimatePreference[] = ['hot', 'mild', 'cool', 'cold', 'variable'];
 const dressCodeOptions: DressCodePreference[] = ['casual', 'smart-casual', 'business-casual', 'business-formal', 'event-ready'];
+const weatherModes: WeatherMode[] = ['auto', 'manual'];
 
 const selectButtonClass = (selected: boolean) =>
   `rounded-full border px-4 py-2 text-sm font-medium transition ${
@@ -41,6 +45,8 @@ export const ProfileWizard: React.FC<ProfileWizardProps> = ({
   onChange,
   onAddUserPhoto,
   onRemoveUserPhoto,
+  onAddWardrobePhoto,
+  onRemoveWardrobePhoto,
   onGenerate,
 }) => {
   return (
@@ -80,6 +86,34 @@ export const ProfileWizard: React.FC<ProfileWizardProps> = ({
                 </div>
               ))}
               {data.userPhotos.length < 5 && <ImageUploader onImageSelected={onAddUserPhoto} compact label="Add photo" />}
+            </div>
+          </div>
+
+          <div className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm">
+            <div className="mb-4 flex items-center gap-2">
+              <Shirt className="h-5 w-5 text-indigo-600" />
+              <h2 className="text-lg font-semibold text-slate-900">Wardrobe photos</h2>
+            </div>
+            <p className="mb-4 text-sm leading-6 text-slate-500">
+              Upload a few pieces you already own. The app will try to reuse them before suggesting new purchases.
+            </p>
+            <div className="grid grid-cols-2 gap-4 md:grid-cols-3">
+              {data.wardrobePhotos.map((photo, index) => (
+                <div key={`${photo.slice(0, 12)}-wardrobe-${index}`} className="group relative aspect-square overflow-hidden rounded-3xl border border-slate-200">
+                  <img src={`data:image/jpeg;base64,${photo}`} alt={`Wardrobe upload ${index + 1}`} className="h-full w-full object-cover" />
+                  <button
+                    type="button"
+                    onClick={() => onRemoveWardrobePhoto(index)}
+                    className="absolute right-3 top-3 inline-flex h-9 w-9 items-center justify-center rounded-full bg-black/55 text-white opacity-0 transition group-hover:opacity-100"
+                    aria-label="Remove wardrobe photo"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                </div>
+              ))}
+              {data.wardrobePhotos.length < 6 && (
+                <ImageUploader onImageSelected={onAddWardrobePhoto} compact label="Add wardrobe item" />
+              )}
             </div>
           </div>
 
@@ -185,11 +219,14 @@ export const ProfileWizard: React.FC<ProfileWizardProps> = ({
 
         <section className="space-y-8">
           <div className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm">
-            <h2 className="mb-4 text-lg font-semibold text-slate-900">Style constraints</h2>
+            <div className="mb-4 flex items-center gap-2">
+              <Coins className="h-5 w-5 text-indigo-600" />
+              <h2 className="text-lg font-semibold text-slate-900">Style constraints</h2>
+            </div>
 
             <div className="grid gap-5">
               <div>
-                <span className="mb-3 block text-sm font-medium text-slate-700">Budget</span>
+                <span className="mb-3 block text-sm font-medium text-slate-700">Budget level</span>
                 <div className="flex flex-wrap gap-2">
                   {budgetOptions.map((option) => (
                     <button key={option} type="button" onClick={() => onChange({ budget: option })} className={selectButtonClass(data.budget === option)}>
@@ -198,6 +235,17 @@ export const ProfileWizard: React.FC<ProfileWizardProps> = ({
                   ))}
                 </div>
               </div>
+
+              <label className="grid gap-2">
+                <span className="text-sm font-medium text-slate-700">Budget cap</span>
+                <input
+                  type="text"
+                  value={data.budgetCap}
+                  onChange={(event) => onChange({ budgetCap: event.target.value })}
+                  placeholder="Example: 350 total, or 120 per item"
+                  className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none transition focus:border-indigo-400 focus:bg-white focus:ring-2 focus:ring-indigo-100"
+                />
+              </label>
 
               <div>
                 <span className="mb-3 block text-sm font-medium text-slate-700">Climate</span>
@@ -249,29 +297,6 @@ export const ProfileWizard: React.FC<ProfileWizardProps> = ({
                 </label>
               </div>
 
-              <div className="grid gap-4 md:grid-cols-2">
-                <label className="grid gap-2">
-                  <span className="text-sm font-medium text-slate-700">Location</span>
-                  <input
-                    type="text"
-                    value={data.location}
-                    onChange={(event) => onChange({ location: event.target.value })}
-                    placeholder="Berlin, Austin, Tokyo"
-                    className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none transition focus:border-indigo-400 focus:bg-white focus:ring-2 focus:ring-indigo-100"
-                  />
-                </label>
-                <label className="grid gap-2">
-                  <span className="text-sm font-medium text-slate-700">Weather notes</span>
-                  <input
-                    type="text"
-                    value={data.weatherNotes}
-                    onChange={(event) => onChange({ weatherNotes: event.target.value })}
-                    placeholder="Rainy week, humid, 10-15°C"
-                    className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none transition focus:border-indigo-400 focus:bg-white focus:ring-2 focus:ring-indigo-100"
-                  />
-                </label>
-              </div>
-
               <label className="grid gap-2">
                 <span className="text-sm font-medium text-slate-700">Brands to avoid</span>
                 <input
@@ -279,6 +304,50 @@ export const ProfileWizard: React.FC<ProfileWizardProps> = ({
                   value={data.avoidBrands}
                   onChange={(event) => onChange({ avoidBrands: event.target.value })}
                   placeholder="Fast fashion only, synthetic-heavy brands, no luxury labels"
+                  className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none transition focus:border-indigo-400 focus:bg-white focus:ring-2 focus:ring-indigo-100"
+                />
+              </label>
+            </div>
+          </div>
+
+          <div className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm">
+            <div className="mb-4 flex items-center gap-2">
+              <CloudSun className="h-5 w-5 text-indigo-600" />
+              <h2 className="text-lg font-semibold text-slate-900">Weather context</h2>
+            </div>
+
+            <div className="grid gap-5">
+              <div>
+                <span className="mb-3 block text-sm font-medium text-slate-700">Weather mode</span>
+                <div className="flex flex-wrap gap-2">
+                  {weatherModes.map((option) => (
+                    <button key={option} type="button" onClick={() => onChange({ weatherMode: option })} className={selectButtonClass(data.weatherMode === option)}>
+                      {option}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <label className="grid gap-2">
+                <span className="text-sm font-medium text-slate-700">Location</span>
+                <input
+                  type="text"
+                  value={data.location}
+                  onChange={(event) => onChange({ location: event.target.value })}
+                  placeholder="Berlin, Austin, Tokyo"
+                  className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none transition focus:border-indigo-400 focus:bg-white focus:ring-2 focus:ring-indigo-100"
+                />
+              </label>
+
+              <label className="grid gap-2">
+                <span className="text-sm font-medium text-slate-700">
+                  {data.weatherMode === 'auto' ? 'Fallback weather notes' : 'Weather notes'}
+                </span>
+                <input
+                  type="text"
+                  value={data.weatherNotes}
+                  onChange={(event) => onChange({ weatherNotes: event.target.value })}
+                  placeholder="Rainy week, humid, 10-15 C"
                   className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none transition focus:border-indigo-400 focus:bg-white focus:ring-2 focus:ring-indigo-100"
                 />
               </label>
@@ -316,7 +385,7 @@ export const ProfileWizard: React.FC<ProfileWizardProps> = ({
                     <ShoppingBag className="h-4 w-4" />
                     Find purchasable products
                   </div>
-                  <p className="mt-1 text-sm text-slate-500">Adds per-look product suggestions and an aggregated shopping board.</p>
+                  <p className="mt-1 text-sm text-slate-500">Adds per-look product suggestions, lower-cost alternatives, and an aggregated shopping board.</p>
                 </div>
               </label>
             </div>
@@ -325,7 +394,7 @@ export const ProfileWizard: React.FC<ProfileWizardProps> = ({
           <div className="rounded-[2rem] border border-slate-200 bg-slate-950 p-6 text-white shadow-sm">
             <h2 className="text-lg font-semibold">Generate</h2>
             <p className="mt-2 text-sm leading-6 text-slate-300">
-              The first pass builds three distinct looks, a best-fit recommendation, optional haircut guidance, and reusable shopping suggestions.
+              The first pass builds three distinct looks, a best-fit recommendation, wardrobe reuse guidance, optional haircut direction, and reusable shopping suggestions.
             </p>
             <Button onClick={onGenerate} disabled={data.userPhotos.length < 1} className="mt-5 w-full bg-white text-slate-950 hover:bg-slate-100">
               <Sparkles className="mr-2 h-4 w-4" />

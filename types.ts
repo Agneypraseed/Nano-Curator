@@ -11,6 +11,16 @@ export type DressCodePreference =
   | 'business-formal'
   | 'event-ready';
 
+export type WeatherMode = 'auto' | 'manual';
+
+export interface ShoppingAlternative {
+  name: string;
+  brand: string;
+  url: string;
+  priceNote?: string;
+  reason?: string;
+}
+
 export interface ShoppingItem {
   name: string;
   brand: string;
@@ -18,6 +28,7 @@ export interface ShoppingItem {
   category?: string;
   priceNote?: string;
   reason?: string;
+  alternatives?: ShoppingAlternative[];
 }
 
 export interface StyleOption {
@@ -29,6 +40,7 @@ export interface StyleOption {
   palette: string[];
   dressCodeNote?: string;
   weatherNote?: string;
+  wardrobeAnchors: string[];
   shoppingItems: ShoppingItem[];
 }
 
@@ -53,6 +65,20 @@ export interface SustainableAdvice {
   purchaseGuidance: string[];
 }
 
+export interface WardrobeSummary {
+  detectedPieces: string[];
+  reusePlan: string[];
+  gapPieces: string[];
+}
+
+export interface WeatherContext {
+  source: 'live' | 'manual' | 'none';
+  location: string;
+  summary: string;
+  temperatureBand?: string;
+  stylingNotes: string[];
+}
+
 export interface StyleSummary {
   headline: string;
   bestLookId: string;
@@ -66,6 +92,8 @@ export interface StyleAnalysis {
   faceShape: string;
   skinTone: string;
   bodyType: string;
+  weatherContext?: WeatherContext;
+  wardrobeSummary?: WardrobeSummary;
   personalBrand?: PersonalBrandReport;
   sustainableAdvice?: SustainableAdvice;
   styles: StyleOption[];
@@ -75,13 +103,16 @@ export interface StyleAnalysis {
 
 export interface WizardState {
   userPhotos: string[];
+  wardrobePhotos: string[];
   goals: string;
   lifestyle: string;
   occasion: string;
   budget: BudgetLevel;
+  budgetCap: string;
   climate: ClimatePreference;
   dressCode: DressCodePreference;
   location: string;
+  weatherMode: WeatherMode;
   weatherNotes: string;
   preferredColors: string;
   avoidColors: string;
@@ -100,6 +131,11 @@ export interface SessionRecord {
   styleImages: Record<string, string>;
   haircutImage: string | null;
   favoriteLookIds: string[];
+}
+
+export interface LookTransformResult {
+  style: StyleOption;
+  image: string;
 }
 
 export enum AppStage {

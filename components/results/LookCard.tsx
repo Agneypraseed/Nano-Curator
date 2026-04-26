@@ -1,5 +1,5 @@
-import React from 'react';
-import { ExternalLink, Heart, Palette, RefreshCw, Scale, ShoppingBag } from 'lucide-react';
+import React, { useState } from 'react';
+import { ExternalLink, Heart, Palette, RefreshCw, Scale, ShoppingBag, WandSparkles } from 'lucide-react';
 import Button from '../Button';
 import { StyleOption } from '../../types';
 
@@ -10,10 +10,30 @@ interface LookCardProps {
   isSelectedForCompare: boolean;
   disableCompare: boolean;
   isRefreshing: boolean;
+  activeEditKey: string | null;
   onToggleFavorite: (lookId: string) => void;
   onToggleCompare: (lookId: string) => void;
   onRefreshImage: (lookId: string) => void;
+  onTransformLook: (lookId: string, label: string, instruction: string) => void;
 }
+
+const QUICK_EDITS = [
+  {
+    label: 'More formal',
+    instruction:
+      'Keep the core silhouette and identity of this look, but make it more formal, cleaner, and more presentation-ready.',
+  },
+  {
+    label: 'Change colors',
+    instruction:
+      'Keep the silhouette and function of this look, but shift the palette toward the user preferred colors and away from the avoided colors.',
+  },
+  {
+    label: 'Lower budget',
+    instruction:
+      'Keep the overall direction, but rebuild the look around lower-cost pieces and more accessible shopping alternatives.',
+  },
+];
 
 export const LookCard: React.FC<LookCardProps> = ({
   style,
@@ -22,10 +42,14 @@ export const LookCard: React.FC<LookCardProps> = ({
   isSelectedForCompare,
   disableCompare,
   isRefreshing,
+  activeEditKey,
   onToggleFavorite,
   onToggleCompare,
   onRefreshImage,
+  onTransformLook,
 }) => {
+  const [customInstruction, setCustomInstruction] = useState('');
+
   return (
     <article className="flex h-full flex-col overflow-hidden rounded-[2rem] border border-slate-200 bg-white shadow-sm">
       <div className="relative overflow-hidden bg-slate-100">
@@ -87,6 +111,11 @@ export const LookCard: React.FC<LookCardProps> = ({
           </div>
           {style.dressCodeNote && <p>{style.dressCodeNote}</p>}
           {style.weatherNote && <p>{style.weatherNote}</p>}
+          {style.wardrobeAnchors.length > 0 && (
+            <p>
+              Reuse from wardrobe: {style.wardrobeAnchors.join(', ')}
+            </p>
+          )}
         </div>
 
         <div className="flex flex-wrap gap-3">
@@ -94,6 +123,54 @@ export const LookCard: React.FC<LookCardProps> = ({
             <RefreshCw className={`mr-2 h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
             Refresh image
           </Button>
+        </div>
+
+        <div className="space-y-3 rounded-3xl border border-slate-200 p-4">
+          <div className="flex items-center gap-2 text-sm font-semibold text-slate-900">
+            <WandSparkles className="h-4 w-4 text-indigo-600" />
+            Edit this look
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {QUICK_EDITS.map((edit) => {
+              const editKey = `${style.id}:${edit.label}`;
+              return (
+                <Button
+                  key={edit.label}
+                  variant="outline"
+                  className="px-3 py-2 text-sm"
+                  onClick={() => onTransformLook(style.id, edit.label, edit.instruction)}
+                  isLoading={activeEditKey === editKey}
+                  loadingLabel={edit.label}
+                >
+                  {edit.label}
+                </Button>
+              );
+            })}
+          </div>
+          <div className="grid gap-2">
+            <input
+              type="text"
+              value={customInstruction}
+              onChange={(event) => setCustomInstruction(event.target.value)}
+              placeholder="Custom tweak, e.g. make this more minimal"
+              className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none transition focus:border-indigo-400 focus:bg-white focus:ring-2 focus:ring-indigo-100"
+            />
+            <Button
+              variant="outline"
+              onClick={() => {
+                const trimmed = customInstruction.trim();
+                if (!trimmed) {
+                  return;
+                }
+                onTransformLook(style.id, 'Custom', trimmed);
+                setCustomInstruction('');
+              }}
+              isLoading={activeEditKey === `${style.id}:Custom`}
+              loadingLabel="Applying tweak"
+            >
+              Apply custom tweak
+            </Button>
+          </div>
         </div>
 
         <div className="space-y-3 border-t border-slate-200 pt-5">
@@ -113,10 +190,30 @@ export const LookCard: React.FC<LookCardProps> = ({
                       <p className="font-medium text-slate-900">{item.name}</p>
                       <p className="mt-1 text-sm text-slate-500">
                         {item.brand}
-                        {item.category ? ` · ${item.category}` : ''}
-                        {item.priceNote ? ` · ${item.priceNote}` : ''}
+                        {item.category ? ` - ${item.category}` : ''}
+                        {item.priceNote ? ` - ${item.priceNote}` : ''}
                       </p>
                       {item.reason && <p className="mt-2 text-sm text-slate-600">{item.reason}</p>}
+                      {item.alternatives && item.alternatives.length > 0 && (
+                        <div className="mt-3 space-y-2 rounded-2xl bg-slate-50 p-3">
+                          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Alternatives</p>
+                          {item.alternatives.map((alternative) => (
+                            <a
+                              key={`${item.url}-${alternative.url}`}
+                              href={alternative.url}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="block rounded-2xl border border-slate-200 bg-white p-3 text-sm transition hover:border-slate-900"
+                            >
+                              <div className="font-medium text-slate-900">{alternative.name}</div>
+                              <div className="mt-1 text-slate-500">
+                                {alternative.brand}
+                                {alternative.priceNote ? ` - ${alternative.priceNote}` : ''}
+                              </div>
+                            </a>
+                          ))}
+                        </div>
+                      )}
                     </div>
                     <a
                       href={item.url}

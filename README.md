@@ -1,6 +1,4 @@
-Nano Curator is a server-backed AI personal stylist.
-
-Run it locally with:
+An AI-powered personal stylist. Upload your photo and get curated outfit makeovers, haircut suggestions, and a sustainable fashion report.
 
 ```bash
 npm install
