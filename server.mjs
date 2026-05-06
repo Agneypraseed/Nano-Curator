@@ -4,6 +4,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createServer as createViteServer } from 'vite';
 import { createGeminiService } from './server/gemini.mjs';
+import { createLocalService } from './server/local.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = __dirname;
@@ -45,6 +46,11 @@ const loadEnvFile = async () => {
 await loadEnvFile();
 
 const gemini = createGeminiService(process.env.GEMINI_API_KEY || process.env.API_KEY);
+const localService = createLocalService({
+  textApiUrl: process.env.LLM_API_URL || 'http://localhost:11434/v1',
+  textModel: process.env.LLM_MODEL || 'llama3.1:8b',
+  vtonApiUrl: process.env.VTON_API_URL || 'http://127.0.0.1:7860',
+});
 const isPreview = process.argv.includes('--preview');
 const port = Number(process.env.PORT || 3000);
 
@@ -76,7 +82,8 @@ const handleApi = async (req, res) => {
   try {
     if (req.method === 'POST' && req.url === '/api/generate-session') {
       const { wizardData, isMore, existingLookTitles } = await readJsonBody(req);
-      const payload = await gemini.generateStyleSession(
+      const service = wizardData.backend === 'local' ? localService : gemini;
+      const payload = await service.generateStyleSession(
         wizardData,
         Boolean(isMore),
         Array.isArray(existingLookTitles) ? existingLookTitles : [],
@@ -86,15 +93,17 @@ const handleApi = async (req, res) => {
     }
 
     if (req.method === 'POST' && req.url === '/api/generate-image') {
-      const { identityImage, prompt, isHaircut } = await readJsonBody(req);
-      const image = await gemini.generateSingleImage(identityImage, prompt, Boolean(isHaircut));
+      const { identityImage, garmentImage, prompt, isHaircut, backend } = await readJsonBody(req);
+      const service = backend === 'local' ? localService : gemini;
+      const image = await service.generateSingleImage(identityImage, garmentImage, prompt, Boolean(isHaircut));
       sendJson(res, 200, { image });
       return true;
     }
 
     if (req.method === 'POST' && req.url === '/api/transform-look') {
-      const { wizardData, identityImage, style, instruction } = await readJsonBody(req);
-      const payload = await gemini.transformLook(wizardData, identityImage, style, instruction);
+      const { wizardData, identityImage, garmentImage, style, instruction } = await readJsonBody(req);
+      const service = wizardData.backend === 'local' ? localService : gemini;
+      const payload = await service.transformLook(wizardData, identityImage, garmentImage, style, instruction);
       sendJson(res, 200, payload);
       return true;
     }

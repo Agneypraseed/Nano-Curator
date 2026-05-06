@@ -30,22 +30,26 @@ export const generateStyleSession = (wizardData: WizardState, isMore = false, ex
     existingLookTitles,
   });
 
-export const regenerateStyleImage = (identityImage: string, prompt: string, isHaircut = false) =>
+export const regenerateStyleImage = (identityImage: string, garmentImage: string | null, prompt: string, isHaircut = false, backend: string = 'gemini') =>
   postJson<{ image: string }>('/api/generate-image', {
     identityImage,
+    garmentImage,
     prompt,
     isHaircut,
+    backend,
   });
 
 export const transformLook = (
   wizardData: WizardState,
   identityImage: string,
+  garmentImage: string | null,
   style: StyleOption,
   instruction: string,
 ) =>
   postJson<LookTransformResult>('/api/transform-look', {
     wizardData,
     identityImage,
+    garmentImage,
     style,
     instruction,
   });

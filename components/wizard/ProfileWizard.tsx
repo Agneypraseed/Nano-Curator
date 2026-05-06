@@ -64,6 +64,29 @@ export const ProfileWizard: React.FC<ProfileWizardProps> = ({
         </div>
       )}
 
+      <div className="mb-8 flex items-center gap-4 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+        <div className="flex-1">
+          <h2 className="font-semibold text-slate-900">AI Engine</h2>
+          <p className="text-sm text-slate-500 mt-1">Choose between cloud APIs or local privacy-preserving models.</p>
+        </div>
+        <div className="flex rounded-full bg-slate-100 p-1">
+          <button
+            type="button"
+            onClick={() => onChange({ backend: 'gemini' })}
+            className={`rounded-full px-5 py-2.5 text-sm font-medium transition ${data.backend !== 'local' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+          >
+            Cloud (Gemini)
+          </button>
+          <button
+            type="button"
+            onClick={() => onChange({ backend: 'local' })}
+            className={`rounded-full px-5 py-2.5 text-sm font-medium transition ${data.backend === 'local' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+          >
+            Local (Privacy)
+          </button>
+        </div>
+      </div>
+
       <div className="grid gap-8 xl:grid-cols-[1fr_1fr]">
         <section className="space-y-8">
           <div className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm">
@@ -115,6 +138,31 @@ export const ProfileWizard: React.FC<ProfileWizardProps> = ({
                 <ImageUploader onImageSelected={onAddWardrobePhoto} compact label="Add wardrobe item" />
               )}
             </div>
+          </div>
+
+          <div className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm">
+            <div className="mb-4 flex items-center gap-2">
+              <ShoppingBag className="h-5 w-5 text-indigo-600" />
+              <h2 className="text-lg font-semibold text-slate-900">Target garment</h2>
+            </div>
+            <p className="mb-4 text-sm leading-6 text-slate-500">
+              Upload the specific dress or outfit you want to try on. Required for high-fidelity Local try-on.
+            </p>
+            {data.garmentImage ? (
+              <div className="group relative overflow-hidden rounded-3xl border border-slate-200">
+                <img src={`data:image/jpeg;base64,${data.garmentImage}`} alt="Garment upload" className="h-56 w-full object-cover object-top" />
+                <button
+                  type="button"
+                  onClick={() => onChange({ garmentImage: null })}
+                  className="absolute right-3 top-3 inline-flex h-9 w-9 items-center justify-center rounded-full bg-black/55 text-white"
+                  aria-label="Remove garment image"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+            ) : (
+              <ImageUploader onImageSelected={(base64) => onChange({ garmentImage: base64 })} label="Upload target garment" />
+            )}
           </div>
 
           <div className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm">

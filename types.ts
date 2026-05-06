@@ -121,6 +121,8 @@ export interface WizardState {
   referenceUrl: string;
   includeHaircut: boolean;
   findOutfits: boolean;
+  backend: 'gemini' | 'local';
+  garmentImage: string | null;
 }
 
 export interface SessionRecord {

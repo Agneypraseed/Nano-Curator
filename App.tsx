@@ -28,6 +28,8 @@ const DEFAULT_WIZARD_DATA: WizardState = {
   referenceUrl: '',
   includeHaircut: true,
   findOutfits: true,
+  backend: 'gemini',
+  garmentImage: null,
 };
 
 const dedupeShopping = (styles: StyleOption[]) => {
@@ -202,7 +204,7 @@ export default function App() {
 
     setRefreshingLookId(lookId);
     try {
-      const response = await regenerateStyleImage(wizardData.userPhotos[0], look.visualPrompt, false);
+      const response = await regenerateStyleImage(wizardData.userPhotos[0], wizardData.garmentImage, look.visualPrompt, false, wizardData.backend);
       const nextStyleImages = { ...styleImages, [lookId]: response.image };
       setStyleImages(nextStyleImages);
       persistSession(analysis, nextStyleImages, haircutImage, favoriteLookIds);
@@ -229,7 +231,7 @@ export default function App() {
     setError(null);
 
     try {
-      const result = await transformLook(wizardData, wizardData.userPhotos[0], targetStyle, instruction);
+      const result = await transformLook(wizardData, wizardData.userPhotos[0], wizardData.garmentImage, targetStyle, instruction);
       const nextStyles = analysis.styles.map((style) => (style.id === lookId ? result.style : style));
       const nextAnalysis: StyleAnalysis = {
         ...analysis,
