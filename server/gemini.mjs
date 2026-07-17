@@ -1,7 +1,7 @@
 import { GoogleGenAI } from '@google/genai';
 
-const TEXT_MODEL = 'gemini-2.5-flash';
-const IMAGE_MODEL = 'gemini-2.5-flash-image';
+const TEXT_MODEL = 'gemini-3.5-flash';
+const IMAGE_MODEL = 'gemini-3.1-flash-lite-image';
 
 const WEATHER_CODE_LABELS = {
   0: 'Clear',
@@ -581,6 +581,19 @@ Return ONLY JSON with this shape:
     throw new Error('No image was generated.');
   };
 
+  const extractWardrobeCutout = async (sourceImage) => {
+    const response = await ai.models.generateContent({
+      model: IMAGE_MODEL,
+      contents: { parts: [{ inlineData: { data: sourceImage, mimeType: 'image/jpeg' } }, { text: 'Create one source-faithful ecommerce clothing catalog cutout from this photo. Extract only the dominant deliberately worn garment. Remove the person, body, skin, hair, mannequin, hanger, props, other layers, and scene. Preserve only clearly visible color, fabric, silhouette, construction, pattern, and legible marks. Do not invent hidden details, branding, text, pockets, or hardware. Center the complete garment with padding. Return a clean PNG with a fully transparent background and no shadow, reflection, caption, border, or watermark.' }] },
+      config: { imageConfig: { aspectRatio: '1:1' } },
+    });
+
+    const responseParts = response.candidates?.[0]?.content?.parts || [];
+    for (const part of responseParts) {
+      if (part.inlineData?.data) return part.inlineData.data;
+    }
+    throw new Error('Nano Banana could not create a wardrobe cutout.');
+  };
   const generateMakeoverGallery = async (baseIdentityImage, garmentImage, items) => {
     if (garmentImage && imageGeneratorOverride) {
       // Use the injected VTON pipeline if a target garment is provided
@@ -697,6 +710,7 @@ Return ONLY JSON for one updated style object with this shape:
   return {
     analyzeStyleRequest,
     generateSingleImage,
+    extractWardrobeCutout,
     generateStyleSession,
     transformLook,
   };

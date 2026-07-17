@@ -56,3 +56,6 @@ export const transformLook = (
 
 export const visualSearch = (image: string) =>
   postJson<{ shoppingItems: ShoppingItem[] }>('/api/visual-search', { image });
+
+export const extractWardrobeCutout = (image: string) =>
+  postJson<{ image: string }>('/api/extract-wardrobe-cutout', { image });

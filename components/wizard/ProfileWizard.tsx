@@ -1,5 +1,5 @@
 import React from 'react';
-import { CloudSun, Coins, Link as LinkIcon, Palette, Shirt, ShoppingBag, Sparkles, Scissors, X } from 'lucide-react';
+import { Check, Plus, CloudSun, Coins, Info, Link as LinkIcon, Palette, Shirt, ShoppingBag, Sparkles, Scissors, X } from 'lucide-react';
 import { ImageUploader } from '../ImageUploader';
 import Button from '../Button';
 import {
@@ -19,8 +19,8 @@ interface ProfileWizardProps {
   onChange: (patch: Partial<WizardState>) => void;
   onAddUserPhoto: (base64: string) => void;
   onRemoveUserPhoto: (index: number) => void;
-  onAddWardrobePhoto: (base64: string) => void;
-  onRemoveWardrobePhoto: (index: number) => void;
+  wardrobeLibrary: string[];
+  onNavigateWardrobe: () => void;
   onGenerate: () => void;
 }
 
@@ -45,8 +45,8 @@ export const ProfileWizard: React.FC<ProfileWizardProps> = ({
   onChange,
   onAddUserPhoto,
   onRemoveUserPhoto,
-  onAddWardrobePhoto,
-  onRemoveWardrobePhoto,
+  wardrobeLibrary,
+  onNavigateWardrobe,
   onGenerate,
 }) => {
   return (
@@ -87,11 +87,15 @@ export const ProfileWizard: React.FC<ProfileWizardProps> = ({
         </div>
       </div>
 
-      <div className="grid gap-8 xl:grid-cols-[1fr_1fr]">
-        <section className="space-y-8">
-          <div className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm">
+      <div className="mb-8 rounded-[2.5rem] border border-slate-200 bg-white p-8 shadow-sm">
+        <h2 className="mb-6 text-xl font-bold text-slate-900 flex items-center justify-center gap-2">
+          <Sparkles className="h-5 w-5 text-indigo-600" />
+          Quick Try-On Setup
+        </h2>
+        <div className="grid gap-8 md:grid-cols-2">
+          <div className="rounded-3xl border border-slate-100 bg-slate-50/50 p-6">
             <div className="mb-5 flex items-center justify-between">
-              <h2 className="text-lg font-semibold text-slate-900">Photos</h2>
+              <h3 className="text-lg font-semibold text-slate-900">Photos of me</h3>
               <span className="text-sm text-slate-500">{data.userPhotos.length} / 5</span>
             </div>
             <div className="grid grid-cols-2 gap-4 md:grid-cols-3">
@@ -112,42 +116,16 @@ export const ProfileWizard: React.FC<ProfileWizardProps> = ({
             </div>
           </div>
 
-          <div className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm">
-            <div className="mb-4 flex items-center gap-2">
-              <Shirt className="h-5 w-5 text-indigo-600" />
-              <h2 className="text-lg font-semibold text-slate-900">Wardrobe photos</h2>
+          <div className="rounded-3xl border border-slate-100 bg-slate-50/50 p-6 flex flex-col justify-between">
+            <div>
+              <div className="mb-4 flex items-center gap-2">
+                <Shirt className="h-5 w-5 text-indigo-600" />
+                <h3 className="text-lg font-semibold text-slate-900">Target garment</h3>
+              </div>
+              <p className="mb-4 text-sm leading-6 text-slate-500">
+                Upload the specific dress or outfit you want to try on. Required for high-fidelity Local try-on.
+              </p>
             </div>
-            <p className="mb-4 text-sm leading-6 text-slate-500">
-              Upload a few pieces you already own. The app will try to reuse them before suggesting new purchases.
-            </p>
-            <div className="grid grid-cols-2 gap-4 md:grid-cols-3">
-              {data.wardrobePhotos.map((photo, index) => (
-                <div key={`${photo.slice(0, 12)}-wardrobe-${index}`} className="group relative aspect-square overflow-hidden rounded-3xl border border-slate-200">
-                  <img src={`data:image/jpeg;base64,${photo}`} alt={`Wardrobe upload ${index + 1}`} className="h-full w-full object-cover" />
-                  <button
-                    type="button"
-                    onClick={() => onRemoveWardrobePhoto(index)}
-                    className="absolute right-3 top-3 inline-flex h-9 w-9 items-center justify-center rounded-full bg-black/55 text-white opacity-0 transition group-hover:opacity-100"
-                    aria-label="Remove wardrobe photo"
-                  >
-                    <X className="h-4 w-4" />
-                  </button>
-                </div>
-              ))}
-              {data.wardrobePhotos.length < 6 && (
-                <ImageUploader onImageSelected={onAddWardrobePhoto} compact label="Add wardrobe item" />
-              )}
-            </div>
-          </div>
-
-          <div className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm">
-            <div className="mb-4 flex items-center gap-2">
-              <ShoppingBag className="h-5 w-5 text-indigo-600" />
-              <h2 className="text-lg font-semibold text-slate-900">Target garment</h2>
-            </div>
-            <p className="mb-4 text-sm leading-6 text-slate-500">
-              Upload the specific dress or outfit you want to try on. Required for high-fidelity Local try-on.
-            </p>
             {data.garmentImage ? (
               <div className="group relative overflow-hidden rounded-3xl border border-slate-200">
                 <img src={`data:image/jpeg;base64,${data.garmentImage}`} alt="Garment upload" className="h-56 w-full object-cover object-top" />
@@ -164,54 +142,106 @@ export const ProfileWizard: React.FC<ProfileWizardProps> = ({
               <ImageUploader onImageSelected={(base64) => onChange({ garmentImage: base64 })} label="Upload target garment" />
             )}
           </div>
+        </div>
 
+        {data.userPhotos.length >= 1 && (
+          <div className="mt-8 flex justify-center animate-fade-in">
+            <button
+              onClick={onGenerate}
+              className="inline-flex items-center justify-center px-10 py-4 border border-transparent text-base font-semibold rounded-full text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 shadow-xl shadow-indigo-100 hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-0.5 active:translate-y-0"
+            >
+              <Sparkles className="mr-2 h-5 w-5" />
+              Quick Try-On
+            </button>
+          </div>
+        )}
+      </div>
+
+      <div className="grid gap-8 xl:grid-cols-[1fr_1fr]">
+        <section className="space-y-8">
           <div className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm">
-            <div className="mb-4 flex items-center gap-2">
-              <Sparkles className="h-5 w-5 text-indigo-600" />
-              <h2 className="text-lg font-semibold text-slate-900">Occasion and goal</h2>
+            <div className="mb-4 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Shirt className="h-5 w-5 text-indigo-600" />
+                <h2 className="text-lg font-semibold text-slate-900">Select Wardrobe Pieces</h2>
+              </div>
+              <button
+                type="button"
+                onClick={onNavigateWardrobe}
+                className="text-xs font-semibold text-indigo-600 hover:text-indigo-700 transition"
+              >
+                Manage Library
+              </button>
             </div>
+            <p className="mb-4 text-sm leading-6 text-slate-500">
+              Select which pieces of your existing wardrobe library to include for matching suggestions in this session.
+            </p>
 
-            <div className="mb-4 flex flex-wrap gap-2">
-              {occasionSuggestions.map((option) => (
+            {wardrobeLibrary.length === 0 ? (
+              <div className="flex flex-col items-center justify-center rounded-3xl border border-dashed border-slate-200 bg-slate-50/50 p-8 text-center">
+                <p className="text-sm text-slate-500 mb-4">Your wardrobe library is empty.</p>
                 <button
-                  key={option}
                   type="button"
-                  onClick={() => onChange({ occasion: option, goals: data.goals || option })}
-                  className={selectButtonClass(data.occasion === option)}
+                  onClick={onNavigateWardrobe}
+                  className="inline-flex items-center justify-center px-6 py-2.5 border border-transparent text-sm font-semibold rounded-full text-white bg-indigo-600 hover:bg-indigo-700 transition"
                 >
-                  {option}
+                  <Plus className="mr-2 h-4 w-4" />
+                  Upload Wardrobe Items
                 </button>
-              ))}
-            </div>
-
-            <div className="grid gap-4">
-              <label className="grid gap-2">
-                <span className="text-sm font-medium text-slate-700">Main goal</span>
-                <input
-                  type="text"
-                  value={data.goals}
-                  onChange={(event) => onChange({ goals: event.target.value })}
-                  placeholder="What should this style direction solve?"
-                  className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none transition focus:border-indigo-400 focus:bg-white focus:ring-2 focus:ring-indigo-100"
-                />
-              </label>
-
-              <label className="grid gap-2">
-                <span className="text-sm font-medium text-slate-700">Lifestyle and constraints</span>
-                <textarea
-                  value={data.lifestyle}
-                  onChange={(event) => onChange({ lifestyle: event.target.value })}
-                  placeholder="Work context, commute, fabrics, silhouette preferences, comfort needs."
-                  className="min-h-32 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none transition focus:border-indigo-400 focus:bg-white focus:ring-2 focus:ring-indigo-100"
-                />
-              </label>
-            </div>
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 gap-4 md:grid-cols-3">
+                {wardrobeLibrary.map((photo, index) => {
+                  const isSelected = data.wardrobePhotos.includes(photo);
+                  return (
+                    <div
+                      key={`wizard-wardrobe-${index}`}
+                      onClick={() => {
+                        const nextPhotos = isSelected
+                          ? data.wardrobePhotos.filter((p) => p !== photo)
+                          : [...data.wardrobePhotos, photo];
+                        onChange({ wardrobePhotos: nextPhotos });
+                      }}
+                      className={`group relative aspect-square overflow-hidden rounded-3xl border cursor-pointer transition duration-200 ${
+                        isSelected ? 'border-indigo-600 ring-2 ring-indigo-100' : 'border-slate-200'
+                      }`}
+                    >
+                      <img src={`data:image/jpeg;base64,${photo}`} alt={`Wardrobe item ${index + 1}`} className="h-full w-full object-cover" />
+                      
+                      {/* Checkmark overlay */}
+                      <div
+                        className={`absolute inset-0 flex items-center justify-center bg-indigo-900/10 transition-opacity duration-200 ${
+                          isSelected ? 'opacity-100' : 'opacity-0 group-hover:opacity-40'
+                        }`}
+                      >
+                        <div
+                          className={`flex h-8 w-8 items-center justify-center rounded-full border border-white text-white transition-all duration-300 ${
+                            isSelected ? 'bg-indigo-600 scale-100' : 'bg-black/40 scale-90 group-hover:scale-100'
+                          }`}
+                        >
+                          <Check className="h-4 w-4" />
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
 
           <div className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm">
             <div className="mb-4 flex items-center gap-2">
               <Palette className="h-5 w-5 text-indigo-600" />
-              <h2 className="text-lg font-semibold text-slate-900">Reference direction</h2>
+              <h2 className="flex items-center gap-2 text-lg font-semibold text-slate-900">
+                Reference direction
+                <div className="group relative flex items-center justify-center">
+                  <Info className="h-4 w-4 text-slate-400 cursor-help hover:text-slate-600 transition" />
+                  <div className="pointer-events-none absolute bottom-full left-1/2 z-10 mb-2 w-64 -translate-x-1/2 rounded-xl bg-slate-800 p-3 text-center text-xs font-normal leading-relaxed text-white opacity-0 shadow-xl transition-opacity group-hover:opacity-100">
+                    Upload a style inspiration (e.g., a Pinterest image) to set the aesthetic "vibe". The AI uses this as a guide but won't extract the exact clothes. To wear a specific piece of clothing, upload a "Target garment" instead.
+                    <div className="absolute -bottom-1 left-1/2 h-2 w-2 -translate-x-1/2 rotate-45 bg-slate-800"></div>
+                  </div>
+                </div>
+              </h2>
             </div>
 
             <div className="mb-4 inline-flex rounded-full bg-slate-100 p-1">
@@ -263,6 +293,43 @@ export const ProfileWizard: React.FC<ProfileWizardProps> = ({
               </label>
             )}
           </div>
+
+          <div className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm">
+            <h2 className="mb-4 text-lg font-semibold text-slate-900">Output options</h2>
+            <div className="grid gap-4">
+              <label className="flex items-start gap-3 rounded-3xl border border-slate-200 p-4">
+                <input
+                  type="checkbox"
+                  checked={data.includeHaircut}
+                  onChange={(event) => onChange({ includeHaircut: event.target.checked })}
+                  className="mt-1 h-4 w-4 rounded border-slate-300 text-slate-900 focus:ring-slate-900"
+                />
+                <div>
+                  <div className="flex items-center gap-2 font-medium text-slate-900">
+                    <Scissors className="h-4 w-4" />
+                    Include haircut direction
+                  </div>
+                  <p className="mt-1 text-sm text-slate-500">Adds a separate hair recommendation and reference image.</p>
+                </div>
+              </label>
+
+              <label className="flex items-start gap-3 rounded-3xl border border-slate-200 p-4">
+                <input
+                  type="checkbox"
+                  checked={data.findOutfits}
+                  onChange={(event) => onChange({ findOutfits: event.target.checked })}
+                  className="mt-1 h-4 w-4 rounded border-slate-300 text-slate-900 focus:ring-slate-900"
+                />
+                <div>
+                  <div className="flex items-center gap-2 font-medium text-slate-900">
+                    <ShoppingBag className="h-4 w-4" />
+                    Find purchasable products
+                  </div>
+                  <p className="mt-1 text-sm text-slate-500">Adds per-look product suggestions, lower-cost alternatives, and an aggregated shopping board.</p>
+                </div>
+              </label>
+            </div>
+          </div>
         </section>
 
         <section className="space-y-8">
@@ -273,6 +340,44 @@ export const ProfileWizard: React.FC<ProfileWizardProps> = ({
             </div>
 
             <div className="grid gap-5">
+              <div>
+                <span className="mb-3 block text-sm font-medium text-slate-700">Occasion and goal</span>
+                <div className="mb-4 flex flex-wrap gap-2">
+                  {occasionSuggestions.map((option) => (
+                    <button
+                      key={option}
+                      type="button"
+                      onClick={() => onChange({ occasion: option, goals: data.goals || option })}
+                      className={selectButtonClass(data.occasion === option)}
+                    >
+                      {option}
+                    </button>
+                  ))}
+                </div>
+                <div className="grid gap-4">
+                  <label className="grid gap-2">
+                    <span className="text-sm font-medium text-slate-700">Main goal</span>
+                    <input
+                      type="text"
+                      value={data.goals}
+                      onChange={(event) => onChange({ goals: event.target.value })}
+                      placeholder="What should this style direction solve?"
+                      className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none transition focus:border-indigo-400 focus:bg-white focus:ring-2 focus:ring-indigo-100"
+                    />
+                  </label>
+
+                  <label className="grid gap-2">
+                    <span className="text-sm font-medium text-slate-700">Lifestyle and constraints</span>
+                    <textarea
+                      value={data.lifestyle}
+                      onChange={(event) => onChange({ lifestyle: event.target.value })}
+                      placeholder="Work context, commute, fabrics, silhouette preferences, comfort needs."
+                      className="min-h-32 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none transition focus:border-indigo-400 focus:bg-white focus:ring-2 focus:ring-indigo-100"
+                    />
+                  </label>
+                </div>
+              </div>
+
               <div>
                 <span className="mb-3 block text-sm font-medium text-slate-700">Budget level</span>
                 <div className="flex flex-wrap gap-2">
@@ -358,98 +463,21 @@ export const ProfileWizard: React.FC<ProfileWizardProps> = ({
             </div>
           </div>
 
-          <div className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm">
-            <div className="mb-4 flex items-center gap-2">
-              <CloudSun className="h-5 w-5 text-indigo-600" />
-              <h2 className="text-lg font-semibold text-slate-900">Weather context</h2>
-            </div>
-
-            <div className="grid gap-5">
-              <div>
-                <span className="mb-3 block text-sm font-medium text-slate-700">Weather mode</span>
-                <div className="flex flex-wrap gap-2">
-                  {weatherModes.map((option) => (
-                    <button key={option} type="button" onClick={() => onChange({ weatherMode: option })} className={selectButtonClass(data.weatherMode === option)}>
-                      {option}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <label className="grid gap-2">
-                <span className="text-sm font-medium text-slate-700">Location</span>
-                <input
-                  type="text"
-                  value={data.location}
-                  onChange={(event) => onChange({ location: event.target.value })}
-                  placeholder="Berlin, Austin, Tokyo"
-                  className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none transition focus:border-indigo-400 focus:bg-white focus:ring-2 focus:ring-indigo-100"
-                />
-              </label>
-
-              <label className="grid gap-2">
-                <span className="text-sm font-medium text-slate-700">
-                  {data.weatherMode === 'auto' ? 'Fallback weather notes' : 'Weather notes'}
-                </span>
-                <input
-                  type="text"
-                  value={data.weatherNotes}
-                  onChange={(event) => onChange({ weatherNotes: event.target.value })}
-                  placeholder="Rainy week, humid, 10-15 C"
-                  className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none transition focus:border-indigo-400 focus:bg-white focus:ring-2 focus:ring-indigo-100"
-                />
-              </label>
-            </div>
-          </div>
-
-          <div className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm">
-            <h2 className="mb-4 text-lg font-semibold text-slate-900">Output options</h2>
-            <div className="grid gap-4">
-              <label className="flex items-start gap-3 rounded-3xl border border-slate-200 p-4">
-                <input
-                  type="checkbox"
-                  checked={data.includeHaircut}
-                  onChange={(event) => onChange({ includeHaircut: event.target.checked })}
-                  className="mt-1 h-4 w-4 rounded border-slate-300 text-slate-900 focus:ring-slate-900"
-                />
-                <div>
-                  <div className="flex items-center gap-2 font-medium text-slate-900">
-                    <Scissors className="h-4 w-4" />
-                    Include haircut direction
-                  </div>
-                  <p className="mt-1 text-sm text-slate-500">Adds a separate hair recommendation and reference image.</p>
-                </div>
-              </label>
-
-              <label className="flex items-start gap-3 rounded-3xl border border-slate-200 p-4">
-                <input
-                  type="checkbox"
-                  checked={data.findOutfits}
-                  onChange={(event) => onChange({ findOutfits: event.target.checked })}
-                  className="mt-1 h-4 w-4 rounded border-slate-300 text-slate-900 focus:ring-slate-900"
-                />
-                <div>
-                  <div className="flex items-center gap-2 font-medium text-slate-900">
-                    <ShoppingBag className="h-4 w-4" />
-                    Find purchasable products
-                  </div>
-                  <p className="mt-1 text-sm text-slate-500">Adds per-look product suggestions, lower-cost alternatives, and an aggregated shopping board.</p>
-                </div>
-              </label>
-            </div>
-          </div>
-
-          <div className="rounded-[2rem] border border-slate-200 bg-slate-950 p-6 text-white shadow-sm">
-            <h2 className="text-lg font-semibold">Generate</h2>
-            <p className="mt-2 text-sm leading-6 text-slate-300">
-              The first pass builds three distinct looks, a best-fit recommendation, wardrobe reuse guidance, optional haircut direction, and reusable shopping suggestions.
-            </p>
-            <Button onClick={onGenerate} disabled={data.userPhotos.length < 1} className="mt-5 w-full bg-white text-slate-950 hover:bg-slate-100">
-              <Sparkles className="mr-2 h-4 w-4" />
-              Generate style collection
-            </Button>
-          </div>
         </section>
+      </div>
+
+      <div className="mt-12 flex flex-col items-center justify-center text-center">
+        <p className="max-w-md text-sm text-slate-500 mb-4">
+          The first pass builds three distinct looks, a best-fit recommendation, wardrobe reuse guidance, and reusable shopping suggestions.
+        </p>
+        <button
+          onClick={onGenerate}
+          disabled={data.userPhotos.length < 1}
+          className="inline-flex items-center justify-center px-10 py-4 border border-transparent text-lg font-medium rounded-full text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed shadow-xl shadow-indigo-100 hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-0.5 active:translate-y-0"
+        >
+          <Sparkles className="mr-2 h-5 w-5" />
+          Generate style collection
+        </button>
       </div>
     </div>
   );

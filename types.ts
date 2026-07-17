@@ -142,6 +142,7 @@ export interface LookTransformResult {
 
 export enum AppStage {
   HOME = 'HOME',
+  WARDROBE = 'WARDROBE',
   WIZARD = 'WIZARD',
   LOADING = 'LOADING',
   RESULTS = 'RESULTS',

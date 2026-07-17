@@ -34,7 +34,10 @@ const loadEnvFile = async () => {
         return;
       }
       const key = line.slice(0, separatorIndex).trim();
-      const value = line.slice(separatorIndex + 1).trim();
+      let value = line.slice(separatorIndex + 1).trim();
+      if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) {
+        value = value.slice(1, -1);
+      }
       if (!process.env[key]) {
         process.env[key] = value;
       }
@@ -105,6 +108,17 @@ const handleApi = async (req, res) => {
       const service = (backend === 'local' || garmentImage) ? localService : gemini;
       const image = await service.generateSingleImage(identityImage, garmentImage, prompt, Boolean(isHaircut));
       sendJson(res, 200, { image });
+      return true;
+    }
+
+    if (req.method === 'POST' && req.url === '/api/extract-wardrobe-cutout') {
+      const { image } = await readJsonBody(req);
+      if (!image || typeof image !== 'string') {
+        sendJson(res, 400, { error: 'A wardrobe image is required.' });
+        return true;
+      }
+      const cutout = await gemini.extractWardrobeCutout(image);
+      sendJson(res, 200, { image: cutout });
       return true;
     }
 
