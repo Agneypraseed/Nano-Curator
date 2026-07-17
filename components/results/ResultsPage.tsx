@@ -27,6 +27,7 @@ interface ResultsPageProps {
   favorites: string[];
   compareLookIds: string[];
   refreshingLookId: string | null;
+  searchingLookId: string | null;
   editingLookKey: string | null;
   isGeneratingMore: boolean;
   sessions: SessionRecord[];
@@ -35,6 +36,7 @@ interface ResultsPageProps {
   onToggleFavorite: (lookId: string) => void;
   onToggleCompare: (lookId: string) => void;
   onRefreshImage: (lookId: string) => void;
+  onVisualSearch: (lookId: string) => void;
   onTransformLook: (lookId: string, label: string, instruction: string) => void;
   onPrint: () => void;
   onShare: () => void;
@@ -51,6 +53,7 @@ export const ResultsPage: React.FC<ResultsPageProps> = ({
   favorites,
   compareLookIds,
   refreshingLookId,
+  searchingLookId,
   editingLookKey,
   isGeneratingMore,
   sessions,
@@ -59,6 +62,7 @@ export const ResultsPage: React.FC<ResultsPageProps> = ({
   onToggleFavorite,
   onToggleCompare,
   onRefreshImage,
+  onVisualSearch,
   onTransformLook,
   onPrint,
   onShare,
@@ -266,10 +270,12 @@ export const ResultsPage: React.FC<ResultsPageProps> = ({
               isSelectedForCompare={compareLookIds.includes(style.id)}
               disableCompare={!compareLookIds.includes(style.id) && compareLookIds.length >= 2}
               isRefreshing={refreshingLookId === style.id}
+              isSearching={searchingLookId === style.id}
               activeEditKey={editingLookKey}
               onToggleFavorite={onToggleFavorite}
               onToggleCompare={onToggleCompare}
               onRefreshImage={onRefreshImage}
+              onVisualSearch={onVisualSearch}
               onTransformLook={onTransformLook}
             />
           ))}

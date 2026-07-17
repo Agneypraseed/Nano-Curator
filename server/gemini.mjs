@@ -361,7 +361,7 @@ const fetchWeatherContext = async (wizardData) => {
   }
 };
 
-export const createGeminiService = (apiKey) => {
+export const createGeminiService = (apiKey, imageGeneratorOverride = null) => {
   if (!apiKey) {
     throw new Error('GEMINI_API_KEY is missing. Add it to .env.local before running the app.');
   }
@@ -398,7 +398,7 @@ export const createGeminiService = (apiKey) => {
       parts.push({
         inlineData: { data: data.garmentImage, mimeType: 'image/jpeg' },
       });
-      parts.push({ text: 'The previous image is a TARGET GARMENT the user wants to wear. Ensure Look 1 heavily incorporates this exact piece.' });
+      parts.push({ text: 'CRITICAL: The previous image is a TARGET GARMENT the user wants to wear. ALL 3 looks MUST feature this exact specific garment. Your job is to suggest how to style this garment 3 different ways (e.g., Casual, Formal, Edgy). For the visualPrompt of each look, ensure you describe a completely different camera pose/angle (e.g., "Full body walking", "Close-up waist up", "Sitting on stool") to show the user the garment from different perspectives.' });
     }
 
     const referenceContext = await fetchReferenceContext(data.referenceUrl);
@@ -582,6 +582,10 @@ Return ONLY JSON with this shape:
   };
 
   const generateMakeoverGallery = async (baseIdentityImage, garmentImage, items) => {
+    if (garmentImage && imageGeneratorOverride) {
+      // Use the injected VTON pipeline if a target garment is provided
+      return await Promise.all(items.map((item) => imageGeneratorOverride(baseIdentityImage, garmentImage, item.prompt, item.isHaircut)));
+    }
     const results = await Promise.all(items.map((item) => generateSingleImage(baseIdentityImage, garmentImage, item.prompt, item.isHaircut)));
     return results;
   };
@@ -662,7 +666,8 @@ Return ONLY JSON for one updated style object with this shape:
 
     const parsed = extractJson(text);
     const nextStyle = normalizeStyleOption(parsed, 0, wizardData.findOutfits);
-    const image = await generateSingleImage(identityImage, garmentImage, nextStyle.visualPrompt, false);
+    const imageGenerator = (garmentImage && imageGeneratorOverride) ? imageGeneratorOverride : generateSingleImage;
+    const image = await imageGenerator(identityImage, garmentImage, nextStyle.visualPrompt, false);
     return {
       style: nextStyle,
       image,

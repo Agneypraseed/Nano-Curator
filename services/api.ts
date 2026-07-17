@@ -1,4 +1,4 @@
-import { LookTransformResult, StyleAnalysis, StyleOption, WizardState } from '../types';
+import { LookTransformResult, ShoppingItem, StyleAnalysis, StyleOption, WizardState } from '../types';
 
 interface SessionPayload {
   analysis: StyleAnalysis;
@@ -53,3 +53,6 @@ export const transformLook = (
     style,
     instruction,
   });
+
+export const visualSearch = (image: string) =>
+  postJson<{ shoppingItems: ShoppingItem[] }>('/api/visual-search', { image });

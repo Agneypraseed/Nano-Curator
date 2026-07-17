@@ -57,6 +57,7 @@ export default function App() {
   const [loadingMessage, setLoadingMessage] = useState('Building your style brief...');
   const [isGeneratingMore, setIsGeneratingMore] = useState(false);
   const [refreshingLookId, setRefreshingLookId] = useState<string | null>(null);
+  const [searchingLookId, setSearchingLookId] = useState<string | null>(null);
   const [editingLookKey, setEditingLookKey] = useState<string | null>(null);
   const [sessionHistory, setSessionHistory] = useState<SessionRecord[]>([]);
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
@@ -247,6 +248,40 @@ export default function App() {
       setError(err instanceof Error ? err.message : 'Unable to update that look right now.');
     } finally {
       setEditingLookKey(null);
+    }
+  };
+
+  const handleVisualSearch = async (lookId: string) => {
+    if (!analysis) return;
+    const targetStyle = analysis.styles.find((style) => style.id === lookId);
+    const targetImage = styleImages[lookId];
+    if (!targetStyle || !targetImage) return;
+
+    setSearchingLookId(lookId);
+    setError(null);
+
+    try {
+      // visualSearch needs to be imported! I will make sure visualSearch is imported in the next step.
+      const { visualSearch } = await import('./services/api');
+      const result = await visualSearch(targetImage);
+      
+      const nextStyles = analysis.styles.map((style) => 
+        style.id === lookId ? { ...style, shoppingItems: result.shoppingItems } : style
+      );
+      
+      const nextAnalysis: StyleAnalysis = {
+        ...analysis,
+        styles: nextStyles,
+        shoppingList: dedupeShopping(nextStyles),
+      };
+      
+      setAnalysis(nextAnalysis);
+      persistSession(nextAnalysis, styleImages, haircutImage, favoriteLookIds);
+    } catch (err) {
+      console.error(err);
+      setError(err instanceof Error ? err.message : 'Unable to find visual matches right now.');
+    } finally {
+      setSearchingLookId(null);
     }
   };
 
@@ -465,6 +500,7 @@ export default function App() {
             compareLookIds={compareLookIds}
             refreshingLookId={refreshingLookId}
             editingLookKey={editingLookKey}
+            searchingLookId={searchingLookId}
             isGeneratingMore={isGeneratingMore}
             sessions={sessionHistory}
             onNewSession={handleReset}
@@ -472,6 +508,7 @@ export default function App() {
             onToggleFavorite={handleToggleFavorite}
             onToggleCompare={handleToggleCompare}
             onRefreshImage={handleRefreshLook}
+            onVisualSearch={handleVisualSearch}
             onTransformLook={handleTransformLook}
             onPrint={() => window.print()}
             onShare={handleShare}

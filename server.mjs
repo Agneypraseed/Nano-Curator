@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { createServer as createViteServer } from 'vite';
 import { createGeminiService } from './server/gemini.mjs';
 import { createLocalService } from './server/local.mjs';
+import { createShoppingService } from './server/shopping.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = __dirname;
@@ -45,12 +46,19 @@ const loadEnvFile = async () => {
 
 await loadEnvFile();
 
-const gemini = createGeminiService(process.env.GEMINI_API_KEY || process.env.API_KEY);
 const localService = createLocalService({
   textApiUrl: process.env.LLM_API_URL || 'http://localhost:11434/v1',
-  textModel: process.env.LLM_MODEL || 'llama3.1:8b',
+  textModel: process.env.LLM_MODEL || 'gemma4:e4b',
   vtonApiUrl: process.env.VTON_API_URL || 'http://127.0.0.1:7860',
 });
+const shoppingService = createShoppingService({
+  imgbbApiKey: process.env.IMGBB_API_KEY,
+  serpApiKey: process.env.SERPAPI_API_KEY,
+});
+
+// Inject the local VTON image generator into Gemini so it falls back for target garments
+const gemini = createGeminiService(process.env.GEMINI_API_KEY || process.env.API_KEY, localService.generateSingleImage);
+
 const isPreview = process.argv.includes('--preview');
 const port = Number(process.env.PORT || 3000);
 
@@ -94,7 +102,7 @@ const handleApi = async (req, res) => {
 
     if (req.method === 'POST' && req.url === '/api/generate-image') {
       const { identityImage, garmentImage, prompt, isHaircut, backend } = await readJsonBody(req);
-      const service = backend === 'local' ? localService : gemini;
+      const service = (backend === 'local' || garmentImage) ? localService : gemini;
       const image = await service.generateSingleImage(identityImage, garmentImage, prompt, Boolean(isHaircut));
       sendJson(res, 200, { image });
       return true;
@@ -105,6 +113,13 @@ const handleApi = async (req, res) => {
       const service = wizardData.backend === 'local' ? localService : gemini;
       const payload = await service.transformLook(wizardData, identityImage, garmentImage, style, instruction);
       sendJson(res, 200, payload);
+      return true;
+    }
+
+    if (req.method === 'POST' && req.url === '/api/visual-search') {
+      const { image } = await readJsonBody(req);
+      const shoppingItems = await shoppingService.findShoppingLinks(image);
+      sendJson(res, 200, { shoppingItems });
       return true;
     }
 

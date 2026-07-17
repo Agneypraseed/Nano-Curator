@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ExternalLink, Heart, Palette, RefreshCw, Scale, ShoppingBag, WandSparkles } from 'lucide-react';
+import { ExternalLink, Heart, Palette, RefreshCw, Scale, Search, ShoppingBag, WandSparkles } from 'lucide-react';
 import Button from '../Button';
 import { StyleOption } from '../../types';
 
@@ -10,10 +10,12 @@ interface LookCardProps {
   isSelectedForCompare: boolean;
   disableCompare: boolean;
   isRefreshing: boolean;
+  isSearching: boolean;
   activeEditKey: string | null;
   onToggleFavorite: (lookId: string) => void;
   onToggleCompare: (lookId: string) => void;
   onRefreshImage: (lookId: string) => void;
+  onVisualSearch: (lookId: string) => void;
   onTransformLook: (lookId: string, label: string, instruction: string) => void;
 }
 
@@ -42,10 +44,12 @@ export const LookCard: React.FC<LookCardProps> = ({
   isSelectedForCompare,
   disableCompare,
   isRefreshing,
+  isSearching,
   activeEditKey,
   onToggleFavorite,
   onToggleCompare,
   onRefreshImage,
+  onVisualSearch,
   onTransformLook,
 }) => {
   const [customInstruction, setCustomInstruction] = useState('');
@@ -122,6 +126,10 @@ export const LookCard: React.FC<LookCardProps> = ({
           <Button variant="outline" onClick={() => onRefreshImage(style.id)} isLoading={isRefreshing} loadingLabel="Refreshing image">
             <RefreshCw className={`mr-2 h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
             Refresh image
+          </Button>
+          <Button variant="outline" onClick={() => onVisualSearch(style.id)} isLoading={isSearching} loadingLabel="Finding matches">
+            <Search className="mr-2 h-4 w-4" />
+            Find real products
           </Button>
         </div>
 
