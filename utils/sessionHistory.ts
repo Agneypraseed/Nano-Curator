@@ -3,7 +3,7 @@ import { SessionRecord } from '../types';
 const STORAGE_KEY = 'nano-curator-session-history';
 const SESSION_LIMIT = 4;
 
-export const loadSessionHistory = (): SessionRecord[] => {
+export const loadSessionHistory = (userId?: string): SessionRecord[] => {
   if (typeof window === 'undefined') {
     return [];
   }
@@ -14,7 +14,8 @@ export const loadSessionHistory = (): SessionRecord[] => {
       return [];
     }
     const parsed = JSON.parse(raw) as SessionRecord[];
-    return Array.isArray(parsed) ? parsed : [];
+    if (!Array.isArray(parsed)) return [];
+    return userId ? parsed.filter((session) => !session.userId || session.userId === userId) : parsed;
   } catch {
     return [];
   }

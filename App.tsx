@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Sparkles } from 'lucide-react';
+import { ProfilePage } from './components/profile/ProfilePage';
 import Button from './components/Button';
 import { HomePage } from './components/home/HomePage';
 import { ResultsPage } from './components/results/ResultsPage';
@@ -7,7 +8,8 @@ import { ProfileWizard } from './components/wizard/ProfileWizard';
 import { WardrobePage } from './components/wardrobe/WardrobePage';
 import { extractWardrobeCutout, generateStyleSession, getProviderStatus, regenerateStyleImage, transformLook } from './services/api';
 import { loadSessionHistory, removeSessionHistoryItem, upsertSessionHistory, loadWardrobeLibrary, saveWardrobeLibrary } from './utils/sessionHistory';
-import { AppStage, ReferenceTab, SessionRecord, StyleAnalysis, StyleOption, WizardState } from './types';
+import { loadUserProfile, saveUserProfile } from './utils/userProfile';
+import { AppStage, ReferenceTab, SessionRecord, StyleAnalysis, StyleOption, UserProfile, WizardState } from './types';
 
 const DEFAULT_WIZARD_DATA: WizardState = {
   userPhotos: [],
@@ -49,6 +51,7 @@ const dedupeShopping = (styles: StyleOption[]) => {
 };
 
 export default function App() {
+  const [userProfile, setUserProfile] = useState<UserProfile>(() => loadUserProfile());
   const [appStage, setAppStage] = useState<AppStage>(AppStage.HOME);
   const [wizardData, setWizardData] = useState<WizardState>(DEFAULT_WIZARD_DATA);
   const [analysis, setAnalysis] = useState<StyleAnalysis | null>(null);
@@ -75,14 +78,29 @@ export default function App() {
   });
 
   useEffect(() => {
-    setSessionHistory(loadSessionHistory());
+    setSessionHistory(loadSessionHistory(userProfile.id));
     setWardrobeLibrary(loadWardrobeLibrary());
+    setWizardData((current) => ({
+      ...current,
+      goals: current.goals || userProfile.styleGoals,
+      lifestyle: current.lifestyle || userProfile.bio,
+      location: current.location || userProfile.location,
+      preferredColors: current.preferredColors || userProfile.preferredColors,
+      avoidColors: current.avoidColors || userProfile.avoidColors,
+    }));
     getProviderStatus().then(setProviderStatus).catch(() => undefined);
   }, []);
 
   const credentials = wizardData.backend === 'local'
     ? { localTextApiUrl: localEndpoints.text, localVtonApiUrl: localEndpoints.vton }
     : { apiKey: apiKeys[wizardData.backend] };
+
+  const profileInitials = (userProfile.displayName || 'NC')
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((part) => part[0])
+    .join('')
+    .toUpperCase();
 
   const persistSession = (
     nextAnalysis: StyleAnalysis,
@@ -94,6 +112,7 @@ export default function App() {
     const sessionId = sessionIdOverride ?? currentSessionId ?? crypto.randomUUID();
     const record: SessionRecord = {
       id: sessionId,
+      userId: userProfile.id,
       createdAt: new Date().toISOString(),
       wizardData,
       analysis: nextAnalysis,
@@ -103,7 +122,7 @@ export default function App() {
     };
 
     upsertSessionHistory(record);
-    setSessionHistory(loadSessionHistory());
+    setSessionHistory(loadSessionHistory(userProfile.id));
     setCurrentSessionId(sessionId);
   };
 
@@ -369,7 +388,7 @@ export default function App() {
 
   const handleDeleteSession = (sessionId: string) => {
     removeSessionHistoryItem(sessionId);
-    setSessionHistory(loadSessionHistory());
+    setSessionHistory(loadSessionHistory(userProfile.id));
   };
 
   const buildBriefText = (targetAnalysis: StyleAnalysis) => {
@@ -456,10 +475,35 @@ export default function App() {
     setCompareLookIds([]);
   };
 
+  const handleSaveProfile = (profile: UserProfile) => {
+    const savedProfile = saveUserProfile(profile);
+    setUserProfile(savedProfile);
+    setWizardData((current) => ({
+      ...current,
+      goals: savedProfile.styleGoals,
+      lifestyle: savedProfile.bio,
+      location: savedProfile.location,
+      preferredColors: savedProfile.preferredColors,
+      avoidColors: savedProfile.avoidColors,
+    }));
+  };
+
+  const handleStartFromProfile = () => {
+    setWizardData((current) => ({
+      ...current,
+      goals: userProfile.styleGoals || current.goals,
+      lifestyle: userProfile.bio || current.lifestyle,
+      location: userProfile.location || current.location,
+      preferredColors: userProfile.preferredColors || current.preferredColors,
+      avoidColors: userProfile.avoidColors || current.avoidColors,
+    }));
+    setAppStage(AppStage.WIZARD);
+  };
+
   const headerAction = useMemo(() => {
-    if (appStage === AppStage.HOME || appStage === AppStage.WARDROBE) {
+    if (appStage === AppStage.HOME || appStage === AppStage.WARDROBE || appStage === AppStage.PROFILE) {
       return (
-        <Button onClick={() => setAppStage(AppStage.WIZARD)} className="hidden sm:inline-flex">
+        <Button onClick={handleStartFromProfile} className="hidden sm:inline-flex">
           Start
         </Button>
       );
@@ -529,9 +573,26 @@ export default function App() {
               >
                 Wardrobe
               </button>
+              <button
+                type="button"
+                onClick={() => setAppStage(AppStage.PROFILE)}
+                className={`text-sm font-semibold px-3 py-2 rounded-lg transition ${appStage === AppStage.PROFILE ? 'text-teal-600 bg-teal-50/50' : 'text-stone-600 hover:text-stone-900'}`}
+              >
+                Profile
+              </button>
             </nav>
           </div>
-          {headerAction}
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setAppStage(AppStage.PROFILE)}
+              aria-label="Open profile"
+              className="grid h-10 w-10 place-items-center rounded-full border border-stone-200 bg-white text-xs font-semibold text-stone-700 transition hover:border-teal-300 hover:bg-teal-50 hover:text-teal-800"
+            >
+              {profileInitials}
+            </button>
+            {headerAction}
+          </div>
         </div>
       </header>
 
@@ -539,7 +600,7 @@ export default function App() {
         {appStage === AppStage.HOME && (
           <HomePage
             sessions={sessionHistory}
-            onStart={() => setAppStage(AppStage.WIZARD)}
+            onStart={handleStartFromProfile}
             onRestore={handleRestoreSession}
             onDelete={handleDeleteSession}
             onNavigateWardrobe={() => setAppStage(AppStage.WARDROBE)}
@@ -556,6 +617,15 @@ export default function App() {
           />
         )}
 
+        {appStage === AppStage.PROFILE && (
+          <ProfilePage
+            profile={userProfile}
+            sessionCount={sessionHistory.length}
+            wardrobeCount={wardrobeLibrary.length}
+            onSave={handleSaveProfile}
+            onStart={handleStartFromProfile}
+          />
+        )}
         {appStage === AppStage.WIZARD && (
           <ProfileWizard
             data={wizardData}

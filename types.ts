@@ -15,6 +15,24 @@ export type WeatherMode = 'auto' | 'manual';
 
 export type AIProvider = 'gemini' | 'openai' | 'local';
 
+export interface UserProfile {
+  id: string;
+  displayName: string;
+  email: string;
+  jobTitle: string;
+  bio: string;
+  location: string;
+  styleGoals: string;
+  preferredColors: string;
+  avoidColors: string;
+  topSize: string;
+  bottomSize: string;
+  shoeSize: string;
+  fitPreference: 'relaxed' | 'balanced' | 'tailored';
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface ShoppingAlternative {
   name: string;
   brand: string;
@@ -130,6 +148,7 @@ export interface WizardState {
 
 export interface SessionRecord {
   id: string;
+  userId: string;
   createdAt: string;
   wizardData: WizardState;
   analysis: StyleAnalysis;
@@ -146,6 +165,7 @@ export interface LookTransformResult {
 export enum AppStage {
   HOME = 'HOME',
   WARDROBE = 'WARDROBE',
+  PROFILE = 'PROFILE',
   WIZARD = 'WIZARD',
   LOADING = 'LOADING',
   RESULTS = 'RESULTS',
