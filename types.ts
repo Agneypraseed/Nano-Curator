@@ -13,6 +13,8 @@ export type DressCodePreference =
 
 export type WeatherMode = 'auto' | 'manual';
 
+export type AIProvider = 'gemini' | 'openai' | 'local';
+
 export interface ShoppingAlternative {
   name: string;
   brand: string;
@@ -121,7 +123,8 @@ export interface WizardState {
   referenceUrl: string;
   includeHaircut: boolean;
   findOutfits: boolean;
-  backend: 'gemini' | 'local';
+  backend: AIProvider;
+  model: string;
   garmentImage: string | null;
 }
 

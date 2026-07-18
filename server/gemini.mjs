@@ -55,7 +55,7 @@ const uniqueBy = (items, keyBuilder) => {
   });
 };
 
-const extractJson = (text) => {
+export const extractJson = (text) => {
   const cleaned = text.replace(/```json|```/g, '').trim();
   return JSON.parse(cleaned);
 };
@@ -74,7 +74,7 @@ const formatTemperatureBand = (low, high) => {
   return `${Math.round(low)}-${Math.round(high)} C`;
 };
 
-const formatWeatherContext = (weatherContext) => {
+export const formatWeatherContext = (weatherContext) => {
   if (!weatherContext || weatherContext.source === 'none') {
     return 'No weather context available.';
   }
@@ -118,7 +118,7 @@ const normalizeShoppingItems = (items) =>
     (item) => item.url || `${item.brand}-${item.name}`,
   );
 
-const normalizeStyleOption = (style, index = 0, findOutfits = true) => ({
+export const normalizeStyleOption = (style, index = 0, findOutfits = true) => ({
   id: style?.id || slugify(style?.title, `look-${index + 1}`),
   title: style?.title || `Look ${index + 1}`,
   description: style?.description || 'Style description not provided.',
@@ -131,7 +131,7 @@ const normalizeStyleOption = (style, index = 0, findOutfits = true) => ({
   shoppingItems: findOutfits ? normalizeShoppingItems(style?.shoppingItems) : [],
 });
 
-const normalizeAnalysis = (parsed, findOutfits, weatherContext) => {
+export const normalizeAnalysis = (parsed, findOutfits, weatherContext) => {
   const styles = ensureArray(parsed.styles).map((style, index) => normalizeStyleOption(style, index, findOutfits));
 
   const flattenedShopping = styles.flatMap((style) => style.shoppingItems);
@@ -281,7 +281,7 @@ const fetchReferenceContext = async (referenceUrl) => {
   }
 };
 
-const fetchWeatherContext = async (wizardData) => {
+export const fetchWeatherContext = async (wizardData) => {
   const manualNotes = wizardData.weatherNotes?.trim();
   const location = wizardData.location?.trim();
 
@@ -361,7 +361,7 @@ const fetchWeatherContext = async (wizardData) => {
   }
 };
 
-export const createGeminiService = (apiKey, imageGeneratorOverride = null) => {
+export const createGeminiService = (apiKey, imageGeneratorOverride = null, textModel = TEXT_MODEL) => {
   if (!apiKey) {
     throw new Error('GEMINI_API_KEY is missing. Add it to .env.local before running the app.');
   }
@@ -520,7 +520,7 @@ Return ONLY JSON with this shape:
     parts.push({ text: promptText });
 
     const response = await ai.models.generateContent({
-      model: TEXT_MODEL,
+      model: textModel,
       contents: { parts },
       config: {
         tools: data.findOutfits ? [{ googleSearch: {} }] : [],
@@ -662,7 +662,7 @@ Return ONLY JSON for one updated style object with this shape:
 `;
 
     const response = await ai.models.generateContent({
-      model: TEXT_MODEL,
+      model: textModel,
       contents: {
         parts: [{ text: prompt }],
       },

@@ -76,49 +76,49 @@ export const ResultsPage: React.FC<ResultsPageProps> = ({
 
   return (
     <div className="mx-auto flex w-full max-w-7xl flex-col gap-10 px-4 pb-20 sm:px-6 lg:px-8">
-      <section className="grid gap-6 rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm lg:grid-cols-[1.2fr_0.8fr]">
+      <section className="grid gap-6 rounded-[2rem] border border-stone-200 bg-white p-6 shadow-sm lg:grid-cols-[1.2fr_0.8fr]">
         <div className="space-y-5">
-          <div className="inline-flex items-center gap-2 rounded-full border border-indigo-200 bg-indigo-50 px-4 py-2 text-sm font-medium text-indigo-800">
+          <div className="inline-flex items-center gap-2 rounded-full border border-teal-200 bg-teal-50 px-4 py-2 text-sm font-medium text-teal-800">
             <Sparkles className="h-4 w-4" />
             {analysis.summary.headline}
           </div>
           <div>
-            <h1 className="text-3xl font-semibold tracking-tight text-slate-950 sm:text-4xl">Primary recommendation: {bestLook?.title}</h1>
-            <p className="mt-3 max-w-3xl text-base leading-7 text-slate-600">{analysis.summary.bestLookReason}</p>
+            <h1 className="text-3xl font-semibold tracking-tight text-stone-950 sm:text-4xl">Primary recommendation: {bestLook?.title}</h1>
+            <p className="mt-3 max-w-3xl text-base leading-7 text-stone-600">{analysis.summary.bestLookReason}</p>
           </div>
 
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-            <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4">
-              <p className="text-sm text-slate-500">Face shape</p>
-              <p className="mt-1 font-medium text-slate-900">{analysis.faceShape}</p>
+            <div className="rounded-3xl border border-stone-200 bg-stone-50 p-4">
+              <p className="text-sm text-stone-500">Face shape</p>
+              <p className="mt-1 font-medium text-stone-900">{analysis.faceShape}</p>
             </div>
-            <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4">
-              <p className="text-sm text-slate-500">Skin tone</p>
-              <p className="mt-1 font-medium text-slate-900">{analysis.skinTone}</p>
+            <div className="rounded-3xl border border-stone-200 bg-stone-50 p-4">
+              <p className="text-sm text-stone-500">Skin tone</p>
+              <p className="mt-1 font-medium text-stone-900">{analysis.skinTone}</p>
             </div>
-            <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4">
-              <p className="text-sm text-slate-500">Body analysis</p>
-              <p className="mt-1 font-medium text-slate-900">{analysis.bodyType}</p>
+            <div className="rounded-3xl border border-stone-200 bg-stone-50 p-4">
+              <p className="text-sm text-stone-500">Body analysis</p>
+              <p className="mt-1 font-medium text-stone-900">{analysis.bodyType}</p>
             </div>
-            <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4">
-              <p className="text-sm text-slate-500">Attached products</p>
-              <p className="mt-1 font-medium text-slate-900">{totalProducts}</p>
+            <div className="rounded-3xl border border-stone-200 bg-stone-50 p-4">
+              <p className="text-sm text-stone-500">Attached products</p>
+              <p className="mt-1 font-medium text-stone-900">{totalProducts}</p>
             </div>
           </div>
         </div>
 
-        <div className="flex flex-col justify-between gap-4 rounded-[2rem] bg-slate-950 p-6 text-white">
+        <div className="flex flex-col justify-between gap-4 rounded-[2rem] bg-stone-950 p-6 text-white">
           <div className="space-y-3">
-            <p className="text-sm uppercase tracking-[0.2em] text-slate-400">Recommendation notes</p>
-            <p className="text-base leading-7 text-slate-200">{analysis.summary.nextStep}</p>
-            <div className="flex items-start gap-2 rounded-3xl border border-white/10 bg-white/5 p-4 text-sm leading-6 text-slate-300">
+            <p className="text-sm uppercase tracking-[0.2em] text-stone-400">Recommendation notes</p>
+            <p className="text-base leading-7 text-stone-200">{analysis.summary.nextStep}</p>
+            <div className="flex items-start gap-2 rounded-3xl border border-white/10 bg-white/5 p-4 text-sm leading-6 text-stone-300">
               <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-amber-300" />
               <span>{analysis.summary.confidenceNote}</span>
             </div>
           </div>
 
           <div className="flex flex-wrap gap-3">
-            <Button variant="secondary" onClick={onPrint} className="bg-white text-slate-950 hover:bg-slate-100">
+            <Button variant="secondary" onClick={onPrint} className="bg-white text-stone-950 hover:bg-stone-100">
               <Printer className="mr-2 h-4 w-4" />
               Export / print
             </Button>
@@ -148,9 +148,9 @@ export const ResultsPage: React.FC<ResultsPageProps> = ({
             <div className="rounded-[2rem] border border-sky-200 bg-sky-50 p-6 shadow-sm">
               <div className="mb-4 flex items-center gap-2">
                 <CloudSun className="h-5 w-5 text-sky-700" />
-                <h2 className="text-xl font-semibold text-slate-900">Weather context</h2>
+                <h2 className="text-xl font-semibold text-stone-900">Weather context</h2>
               </div>
-              <div className="space-y-2 text-sm leading-6 text-slate-700">
+              <div className="space-y-2 text-sm leading-6 text-stone-700">
                 <p><span className="font-medium">Source:</span> {analysis.weatherContext.source}</p>
                 <p><span className="font-medium">Location:</span> {analysis.weatherContext.location}</p>
                 <p><span className="font-medium">Summary:</span> {analysis.weatherContext.summary}</p>
@@ -159,7 +159,7 @@ export const ResultsPage: React.FC<ResultsPageProps> = ({
                 )}
               </div>
               {analysis.weatherContext.stylingNotes.length > 0 && (
-                <ul className="mt-4 space-y-2 text-sm text-slate-700">
+                <ul className="mt-4 space-y-2 text-sm text-stone-700">
                   {analysis.weatherContext.stylingNotes.map((item) => (
                     <li key={item}>- {item}</li>
                   ))}
@@ -172,12 +172,12 @@ export const ResultsPage: React.FC<ResultsPageProps> = ({
             <div className="rounded-[2rem] border border-amber-200 bg-amber-50 p-6 shadow-sm">
               <div className="mb-4 flex items-center gap-2">
                 <Shirt className="h-5 w-5 text-amber-700" />
-                <h2 className="text-xl font-semibold text-slate-900">Wardrobe reuse plan</h2>
+                <h2 className="text-xl font-semibold text-stone-900">Wardrobe reuse plan</h2>
               </div>
               <div className="grid gap-5 md:grid-cols-3">
                 <div>
                   <h3 className="mb-2 text-sm font-semibold uppercase tracking-[0.2em] text-amber-900">Detected pieces</h3>
-                  <ul className="space-y-2 text-sm text-slate-700">
+                  <ul className="space-y-2 text-sm text-stone-700">
                     {analysis.wardrobeSummary.detectedPieces.map((item) => (
                       <li key={item}>{item}</li>
                     ))}
@@ -185,7 +185,7 @@ export const ResultsPage: React.FC<ResultsPageProps> = ({
                 </div>
                 <div>
                   <h3 className="mb-2 text-sm font-semibold uppercase tracking-[0.2em] text-amber-900">Reuse plan</h3>
-                  <ul className="space-y-2 text-sm text-slate-700">
+                  <ul className="space-y-2 text-sm text-stone-700">
                     {analysis.wardrobeSummary.reusePlan.map((item) => (
                       <li key={item}>{item}</li>
                     ))}
@@ -193,7 +193,7 @@ export const ResultsPage: React.FC<ResultsPageProps> = ({
                 </div>
                 <div>
                   <h3 className="mb-2 text-sm font-semibold uppercase tracking-[0.2em] text-amber-900">Gap pieces</h3>
-                  <ul className="space-y-2 text-sm text-slate-700">
+                  <ul className="space-y-2 text-sm text-stone-700">
                     {analysis.wardrobeSummary.gapPieces.map((item) => (
                       <li key={item}>{item}</li>
                     ))}
@@ -206,21 +206,21 @@ export const ResultsPage: React.FC<ResultsPageProps> = ({
       )}
 
       {compareLooks.length === 2 && (
-        <section className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm">
+        <section className="rounded-[2rem] border border-stone-200 bg-white p-6 shadow-sm">
           <div className="mb-5 flex items-center gap-2">
-            <ArrowLeftRight className="h-5 w-5 text-slate-500" />
-            <h2 className="text-xl font-semibold text-slate-900">Compare looks</h2>
+            <ArrowLeftRight className="h-5 w-5 text-stone-500" />
+            <h2 className="text-xl font-semibold text-stone-900">Compare looks</h2>
           </div>
           <div className="grid gap-6 lg:grid-cols-2">
             {compareLooks.map((look) => (
-              <div key={`compare-${look.id}`} className="overflow-hidden rounded-[2rem] border border-slate-200">
+              <div key={`compare-${look.id}`} className="overflow-hidden rounded-[2rem] border border-stone-200">
                 <img src={styleImages[look.id]} alt={look.title} className="aspect-[3/4] w-full object-cover" />
                 <div className="space-y-3 p-5">
                   <div className="flex items-center justify-between gap-3">
-                    <h3 className="text-lg font-semibold text-slate-900">{look.title}</h3>
-                    <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-600">{look.shoppingItems.length} products</span>
+                    <h3 className="text-lg font-semibold text-stone-900">{look.title}</h3>
+                    <span className="rounded-full bg-stone-100 px-3 py-1 text-xs font-medium text-stone-600">{look.shoppingItems.length} products</span>
                   </div>
-                  <p className="text-sm leading-6 text-slate-600">{look.reasoning}</p>
+                  <p className="text-sm leading-6 text-stone-600">{look.reasoning}</p>
                 </div>
               </div>
             ))}
@@ -229,18 +229,18 @@ export const ResultsPage: React.FC<ResultsPageProps> = ({
       )}
 
       {favoriteLooks.length > 0 && (
-        <section className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm">
+        <section className="rounded-[2rem] border border-stone-200 bg-white p-6 shadow-sm">
           <div className="mb-5 flex items-center gap-2">
             <Star className="h-5 w-5 text-amber-500" />
-            <h2 className="text-xl font-semibold text-slate-900">Favorites board</h2>
+            <h2 className="text-xl font-semibold text-stone-900">Favorites board</h2>
           </div>
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
             {favoriteLooks.map((look) => (
-              <div key={`favorite-${look.id}`} className="overflow-hidden rounded-[2rem] border border-slate-200">
+              <div key={`favorite-${look.id}`} className="overflow-hidden rounded-[2rem] border border-stone-200">
                 <img src={styleImages[look.id]} alt={look.title} className="aspect-[4/5] w-full object-cover" />
                 <div className="p-4">
-                  <h3 className="font-semibold text-slate-900">{look.title}</h3>
-                  <p className="mt-2 text-sm leading-6 text-slate-600">{look.description}</p>
+                  <h3 className="font-semibold text-stone-900">{look.title}</h3>
+                  <p className="mt-2 text-sm leading-6 text-stone-600">{look.description}</p>
                 </div>
               </div>
             ))}
@@ -251,8 +251,8 @@ export const ResultsPage: React.FC<ResultsPageProps> = ({
       <section className="space-y-5">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h2 className="text-2xl font-semibold text-slate-950">Look set</h2>
-            <p className="text-sm text-slate-500">Select up to two looks for compare. Refresh or transform any look without rerunning the full session.</p>
+            <h2 className="text-2xl font-semibold text-stone-950">Look set</h2>
+            <p className="text-sm text-stone-500">Select up to two looks for compare. Refresh or transform any look without rerunning the full session.</p>
           </div>
           <Button variant="outline" onClick={onGenerateMore} isLoading={isGeneratingMore} loadingLabel="Generating more looks">
             <RefreshCw className={`mr-2 h-4 w-4 ${isGeneratingMore ? 'animate-spin' : ''}`} />
@@ -284,37 +284,37 @@ export const ResultsPage: React.FC<ResultsPageProps> = ({
 
       <section className="grid gap-6 lg:grid-cols-[1.05fr_0.95fr]">
         {analysis.personalBrand && (
-          <div className="rounded-[2rem] border border-slate-200 bg-slate-950 p-6 text-white shadow-sm">
+          <div className="rounded-[2rem] border border-stone-200 bg-stone-950 p-6 text-white shadow-sm">
             <div className="mb-5 flex items-center gap-3">
               <div className="rounded-2xl bg-white/10 p-3">
-                <Briefcase className="h-5 w-5 text-indigo-300" />
+                <Briefcase className="h-5 w-5 text-teal-300" />
               </div>
               <div>
                 <h2 className="text-xl font-semibold">Personal brand report</h2>
-                <p className="text-sm text-slate-400">{analysis.personalBrand.archetype}</p>
+                <p className="text-sm text-stone-400">{analysis.personalBrand.archetype}</p>
               </div>
             </div>
-            <p className="mb-6 text-sm leading-7 text-slate-300">{analysis.personalBrand.strategicSummary}</p>
+            <p className="mb-6 text-sm leading-7 text-stone-300">{analysis.personalBrand.strategicSummary}</p>
             <div className="grid gap-6 md:grid-cols-3">
               <div>
-                <h3 className="mb-3 text-sm font-semibold uppercase tracking-[0.2em] text-indigo-300">Industry</h3>
-                <ul className="space-y-2 text-sm text-slate-300">
+                <h3 className="mb-3 text-sm font-semibold uppercase tracking-[0.2em] text-teal-300">Industry</h3>
+                <ul className="space-y-2 text-sm text-stone-300">
                   {analysis.personalBrand.industryInsights.map((item) => (
                     <li key={item}>{item}</li>
                   ))}
                 </ul>
               </div>
               <div>
-                <h3 className="mb-3 text-sm font-semibold uppercase tracking-[0.2em] text-indigo-300">Strategy</h3>
-                <ul className="space-y-2 text-sm text-slate-300">
+                <h3 className="mb-3 text-sm font-semibold uppercase tracking-[0.2em] text-teal-300">Strategy</h3>
+                <ul className="space-y-2 text-sm text-stone-300">
                   {analysis.personalBrand.transformationStrategy.map((item) => (
                     <li key={item}>{item}</li>
                   ))}
                 </ul>
               </div>
               <div>
-                <h3 className="mb-3 text-sm font-semibold uppercase tracking-[0.2em] text-indigo-300">Body and face fit</h3>
-                <ul className="space-y-2 text-sm text-slate-300">
+                <h3 className="mb-3 text-sm font-semibold uppercase tracking-[0.2em] text-teal-300">Body and face fit</h3>
+                <ul className="space-y-2 text-sm text-stone-300">
                   {analysis.personalBrand.bodyAnalysis.map((item) => (
                     <li key={item}>{item}</li>
                   ))}
@@ -366,38 +366,38 @@ export const ResultsPage: React.FC<ResultsPageProps> = ({
       </section>
 
       {analysis.haircut && (
-        <section className="grid gap-6 rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm lg:grid-cols-[280px_1fr]">
-          <div className="overflow-hidden rounded-[2rem] bg-slate-100">
+        <section className="grid gap-6 rounded-[2rem] border border-stone-200 bg-white p-6 shadow-sm lg:grid-cols-[280px_1fr]">
+          <div className="overflow-hidden rounded-[2rem] bg-stone-100">
             {haircutImage ? (
               <img src={haircutImage} alt={analysis.haircut.styleName} className="aspect-[3/4] h-full w-full object-cover object-top" />
             ) : (
-              <div className="flex aspect-[3/4] items-center justify-center text-sm text-slate-400">Generating haircut image</div>
+              <div className="flex aspect-[3/4] items-center justify-center text-sm text-stone-400">Generating haircut image</div>
             )}
           </div>
           <div className="space-y-4">
-            <div className="inline-flex items-center gap-2 rounded-full bg-indigo-50 px-4 py-2 text-sm font-medium text-indigo-700">
+            <div className="inline-flex items-center gap-2 rounded-full bg-teal-50 px-4 py-2 text-sm font-medium text-teal-700">
               <Scissors className="h-4 w-4" />
               Hair direction
             </div>
             <div>
-              <h2 className="text-2xl font-semibold text-slate-950">{analysis.haircut.styleName}</h2>
-              <p className="mt-3 text-base leading-7 text-slate-600">{analysis.haircut.description}</p>
+              <h2 className="text-2xl font-semibold text-stone-950">{analysis.haircut.styleName}</h2>
+              <p className="mt-3 text-base leading-7 text-stone-600">{analysis.haircut.description}</p>
             </div>
-            <div className="rounded-3xl bg-slate-50 p-4 text-sm leading-6 text-slate-600">
-              <span className="font-medium text-slate-900">Maintenance:</span> {analysis.haircut.maintenance}
+            <div className="rounded-3xl bg-stone-50 p-4 text-sm leading-6 text-stone-600">
+              <span className="font-medium text-stone-900">Maintenance:</span> {analysis.haircut.maintenance}
             </div>
           </div>
         </section>
       )}
 
       {analysis.shoppingList && analysis.shoppingList.length > 0 && (
-        <section className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm">
+        <section className="rounded-[2rem] border border-stone-200 bg-white p-6 shadow-sm">
           <div className="mb-5 flex items-center justify-between gap-4">
             <div>
-              <h2 className="text-xl font-semibold text-slate-950">Combined shopping board</h2>
-              <p className="text-sm text-slate-500">Deduped links across the whole session.</p>
+              <h2 className="text-xl font-semibold text-stone-950">Combined shopping board</h2>
+              <p className="text-sm text-stone-500">Deduped links across the whole session.</p>
             </div>
-            <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-600">{analysis.shoppingList.length} links</span>
+            <span className="rounded-full bg-stone-100 px-3 py-1 text-xs font-medium text-stone-600">{analysis.shoppingList.length} links</span>
           </div>
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
             {analysis.shoppingList.map((item) => (
@@ -406,10 +406,10 @@ export const ResultsPage: React.FC<ResultsPageProps> = ({
                 href={item.url}
                 target="_blank"
                 rel="noreferrer"
-                className="rounded-3xl border border-slate-200 p-4 transition hover:border-slate-900 hover:shadow-sm"
+                className="rounded-3xl border border-stone-200 p-4 transition hover:border-stone-900 hover:shadow-sm"
               >
-                <p className="font-medium text-slate-900">{item.name}</p>
-                <p className="mt-2 text-sm text-slate-500">
+                <p className="font-medium text-stone-900">{item.name}</p>
+                <p className="mt-2 text-sm text-stone-500">
                   {item.brand}
                   {item.category ? ` - ${item.category}` : ''}
                   {item.priceNote ? ` - ${item.priceNote}` : ''}
@@ -421,7 +421,7 @@ export const ResultsPage: React.FC<ResultsPageProps> = ({
       )}
 
       {sessions.length > 1 && (
-        <section className="rounded-[2rem] border border-slate-200 bg-slate-50 p-6 text-sm text-slate-600 shadow-sm">
+        <section className="rounded-[2rem] border border-stone-200 bg-stone-50 p-6 text-sm text-stone-600 shadow-sm">
           This session has been added to your local history. Reopen it later from the home screen without rerunning the full flow.
         </section>
       )}

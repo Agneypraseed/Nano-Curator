@@ -18,9 +18,9 @@ const Button: React.FC<ButtonProps> = ({
   const baseStyles = "inline-flex items-center justify-center px-6 py-3 border text-base font-medium rounded-2xl focus:outline-none focus:ring-2 focus:ring-offset-2 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed";
   
   const variants = {
-    primary: "border-transparent text-white bg-slate-900 hover:bg-slate-800 focus:ring-slate-900 shadow-lg hover:shadow-xl",
-    secondary: "border-transparent text-slate-900 bg-white hover:bg-slate-50 focus:ring-slate-200 shadow-sm border-slate-200",
-    outline: "border-slate-300 text-slate-700 bg-transparent hover:bg-slate-50 focus:ring-slate-500"
+    primary: "border-transparent text-white bg-stone-900 hover:bg-stone-800 focus:ring-stone-900 shadow-lg hover:shadow-xl",
+    secondary: "border-transparent text-stone-900 bg-white hover:bg-stone-50 focus:ring-stone-200 shadow-sm border-stone-200",
+    outline: "border-stone-300 text-stone-700 bg-transparent hover:bg-stone-50 focus:ring-stone-500"
   };
 
   return (

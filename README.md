@@ -5,4 +5,11 @@ npm install
 npm run dev
 ```
 
-Add `GEMINI_API_KEY=...` to `.env.local` before starting the server.
+Cloud keys can be configured on the server in `.env.local`:
+
+```bash
+GEMINI_API_KEY=...
+OPENAI_API_KEY=...
+```
+
+If a key is not configured, the app asks for it after the user selects a model. Entered keys are kept in memory for the current browser tab and are not saved with style sessions.

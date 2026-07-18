@@ -6,6 +6,17 @@ interface SessionPayload {
   haircutImage: string | null;
 }
 
+export interface ProviderCredentials {
+  apiKey?: string;
+  localTextApiUrl?: string;
+  localVtonApiUrl?: string;
+}
+
+export interface ProviderStatus {
+  gemini: boolean;
+  openai: boolean;
+}
+
 const postJson = async <T>(url: string, payload: unknown): Promise<T> => {
   const response = await fetch(url, {
     method: 'POST',
@@ -23,20 +34,28 @@ const postJson = async <T>(url: string, payload: unknown): Promise<T> => {
   return response.json() as Promise<T>;
 };
 
-export const generateStyleSession = (wizardData: WizardState, isMore = false, existingLookTitles: string[] = []) =>
+export const getProviderStatus = async (): Promise<ProviderStatus> => {
+  const response = await fetch('/api/provider-status');
+  if (!response.ok) throw new Error('Unable to check provider configuration.');
+  return response.json() as Promise<ProviderStatus>;
+};
+
+export const generateStyleSession = (wizardData: WizardState, credentials: ProviderCredentials, isMore = false, existingLookTitles: string[] = []) =>
   postJson<SessionPayload>('/api/generate-session', {
     wizardData,
+    credentials,
     isMore,
     existingLookTitles,
   });
 
-export const regenerateStyleImage = (identityImage: string, garmentImage: string | null, prompt: string, isHaircut = false, backend: string = 'gemini') =>
+export const regenerateStyleImage = (identityImage: string, garmentImage: string | null, prompt: string, wizardData: WizardState, credentials: ProviderCredentials, isHaircut = false) =>
   postJson<{ image: string }>('/api/generate-image', {
     identityImage,
     garmentImage,
     prompt,
     isHaircut,
-    backend,
+    wizardData,
+    credentials,
   });
 
 export const transformLook = (
@@ -45,6 +64,7 @@ export const transformLook = (
   garmentImage: string | null,
   style: StyleOption,
   instruction: string,
+  credentials: ProviderCredentials,
 ) =>
   postJson<LookTransformResult>('/api/transform-look', {
     wizardData,
@@ -52,10 +72,11 @@ export const transformLook = (
     garmentImage,
     style,
     instruction,
+    credentials,
   });
 
 export const visualSearch = (image: string) =>
   postJson<{ shoppingItems: ShoppingItem[] }>('/api/visual-search', { image });
 
-export const extractWardrobeCutout = (image: string) =>
-  postJson<{ image: string }>('/api/extract-wardrobe-cutout', { image });
+export const extractWardrobeCutout = (image: string, wizardData: WizardState, credentials: ProviderCredentials) =>
+  postJson<{ image: string }>('/api/extract-wardrobe-cutout', { image, wizardData, credentials });

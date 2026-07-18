@@ -5,7 +5,7 @@ import { HomePage } from './components/home/HomePage';
 import { ResultsPage } from './components/results/ResultsPage';
 import { ProfileWizard } from './components/wizard/ProfileWizard';
 import { WardrobePage } from './components/wardrobe/WardrobePage';
-import { extractWardrobeCutout, generateStyleSession, regenerateStyleImage, transformLook } from './services/api';
+import { extractWardrobeCutout, generateStyleSession, getProviderStatus, regenerateStyleImage, transformLook } from './services/api';
 import { loadSessionHistory, removeSessionHistoryItem, upsertSessionHistory, loadWardrobeLibrary, saveWardrobeLibrary } from './utils/sessionHistory';
 import { AppStage, ReferenceTab, SessionRecord, StyleAnalysis, StyleOption, WizardState } from './types';
 
@@ -30,6 +30,7 @@ const DEFAULT_WIZARD_DATA: WizardState = {
   includeHaircut: true,
   findOutfits: true,
   backend: 'gemini',
+  model: 'gemini-3.5-flash',
   garmentImage: null,
 };
 
@@ -66,11 +67,22 @@ export default function App() {
   const [compareLookIds, setCompareLookIds] = useState<string[]>([]);
 
   const [wardrobeLibrary, setWardrobeLibrary] = useState<string[]>([]);
+  const [apiKeys, setApiKeys] = useState<Partial<Record<'gemini' | 'openai', string>>>({});
+  const [providerStatus, setProviderStatus] = useState({ gemini: false, openai: false });
+  const [localEndpoints, setLocalEndpoints] = useState({
+    text: 'http://localhost:11434/v1',
+    vton: 'http://127.0.0.1:7860',
+  });
 
   useEffect(() => {
     setSessionHistory(loadSessionHistory());
     setWardrobeLibrary(loadWardrobeLibrary());
+    getProviderStatus().then(setProviderStatus).catch(() => undefined);
   }, []);
+
+  const credentials = wizardData.backend === 'local'
+    ? { localTextApiUrl: localEndpoints.text, localVtonApiUrl: localEndpoints.vton }
+    : { apiKey: apiKeys[wizardData.backend] };
 
   const persistSession = (
     nextAnalysis: StyleAnalysis,
@@ -111,7 +123,7 @@ export default function App() {
   const handleAddWardrobeItem = async (base64: string): Promise<string> => {
     let finalImage = base64;
     try {
-      const { image } = await extractWardrobeCutout(base64);
+      const { image } = await extractWardrobeCutout(base64, wizardData, credentials);
       finalImage = image;
     } catch (error) {
       console.error('Wardrobe cutout extraction failed; retaining the source photo.', error);
@@ -137,6 +149,16 @@ export default function App() {
   };
 
   const runGeneration = async (isMore = false) => {
+    if (wizardData.backend === 'local' && (!localEndpoints.text.trim() || !localEndpoints.vton.trim())) {
+      setError('Add both local endpoints before generating.');
+      return;
+    }
+
+    if (wizardData.backend !== 'local' && !providerStatus[wizardData.backend] && !apiKeys[wizardData.backend]?.trim()) {
+      setError('Please add your ' + (wizardData.backend === 'openai' ? 'OpenAI' : 'Gemini') + ' API key for the selected model.');
+      return;
+    }
+
     if (wizardData.userPhotos.length < 1 && !analysis) {
       setError('Please upload at least 1 photo.');
       return;
@@ -156,6 +178,7 @@ export default function App() {
     try {
       const payload = await generateStyleSession(
         wizardData,
+        credentials,
         isMore,
         analysis?.styles.map((style) => style.title) ?? [],
       );
@@ -224,7 +247,7 @@ export default function App() {
 
     setRefreshingLookId(lookId);
     try {
-      const response = await regenerateStyleImage(wizardData.userPhotos[0], wizardData.garmentImage, look.visualPrompt, false, wizardData.backend);
+      const response = await regenerateStyleImage(wizardData.userPhotos[0], wizardData.garmentImage, look.visualPrompt, wizardData, credentials);
       const nextStyleImages = { ...styleImages, [lookId]: response.image };
       setStyleImages(nextStyleImages);
       persistSession(analysis, nextStyleImages, haircutImage, favoriteLookIds);
@@ -251,7 +274,7 @@ export default function App() {
     setError(null);
 
     try {
-      const result = await transformLook(wizardData, wizardData.userPhotos[0], wizardData.garmentImage, targetStyle, instruction);
+      const result = await transformLook(wizardData, wizardData.userPhotos[0], wizardData.garmentImage, targetStyle, instruction, credentials);
       const nextStyles = analysis.styles.map((style) => (style.id === lookId ? result.style : style));
       const nextAnalysis: StyleAnalysis = {
         ...analysis,
@@ -330,7 +353,10 @@ export default function App() {
   };
 
   const handleRestoreSession = (session: SessionRecord) => {
-    setWizardData(session.wizardData);
+    setWizardData({
+      ...session.wizardData,
+      model: session.wizardData.model || (session.wizardData.backend === 'local' ? 'local' : 'gemini-3.5-flash'),
+    });
     setAnalysis(session.analysis);
     setStyleImages(session.styleImages);
     setHaircutImage(session.haircutImage);
@@ -461,13 +487,13 @@ export default function App() {
   const renderLoading = (message: string) => (
     <div className="flex min-h-[60vh] flex-col items-center justify-center space-y-8 px-4 text-center">
       <div className="relative h-32 w-32">
-        <div className="absolute inset-0 rounded-full border-8 border-indigo-100" />
-        <div className="absolute inset-0 animate-spin rounded-full border-8 border-indigo-600 border-t-transparent" />
-        <Sparkles className="absolute inset-0 m-auto h-10 w-10 animate-pulse text-indigo-600" />
+        <div className="absolute inset-0 rounded-full border-8 border-teal-100" />
+        <div className="absolute inset-0 animate-spin rounded-full border-8 border-teal-600 border-t-transparent" />
+        <Sparkles className="absolute inset-0 m-auto h-10 w-10 animate-pulse text-teal-600" />
       </div>
       <div className="space-y-2">
-        <h2 className="text-2xl font-bold text-slate-800">{message}</h2>
-        <p className="text-slate-500">
+        <h2 className="text-2xl font-bold text-stone-800">{message}</h2>
+        <p className="text-stone-500">
           The server is building the recommendations and keeping the API key out of the client bundle.
         </p>
       </div>
@@ -475,31 +501,31 @@ export default function App() {
   );
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900 font-sans selection:bg-indigo-100 selection:text-indigo-900">
-      <header className="sticky top-0 z-50 border-b border-slate-200 bg-white/90 backdrop-blur-md">
+    <div className="min-h-screen bg-stone-50 text-stone-900 font-sans selection:bg-teal-100 selection:text-teal-900">
+      <header className="sticky top-0 z-50 border-b border-stone-200 bg-white/90 backdrop-blur-md">
         <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
           <div className="flex items-center gap-8">
             <button type="button" className="flex items-center gap-3" onClick={() => setAppStage(AppStage.HOME)}>
-              <div className="rounded-xl bg-slate-950 p-2 text-white">
+              <div className="rounded-xl bg-stone-950 p-2 text-white">
                 <Sparkles className="h-5 w-5" />
               </div>
               <div className="text-left">
-                <div className="text-sm font-medium uppercase tracking-[0.25em] text-slate-400">Nano Curator</div>
-                <div className="text-sm text-slate-600">AI style direction</div>
+                <div className="text-sm font-medium uppercase tracking-[0.25em] text-stone-400">Nano Curator</div>
+                <div className="text-sm text-stone-600">AI style direction</div>
               </div>
             </button>
             <nav className="hidden md:flex items-center gap-4">
               <button
                 type="button"
                 onClick={() => setAppStage(AppStage.HOME)}
-                className={`text-sm font-semibold px-3 py-2 rounded-lg transition ${appStage === AppStage.HOME ? 'text-indigo-600 bg-indigo-50/50' : 'text-slate-600 hover:text-slate-900'}`}
+                className={`text-sm font-semibold px-3 py-2 rounded-lg transition ${appStage === AppStage.HOME ? 'text-teal-600 bg-teal-50/50' : 'text-stone-600 hover:text-stone-900'}`}
               >
                 Home
               </button>
               <button
                 type="button"
                 onClick={() => setAppStage(AppStage.WARDROBE)}
-                className={`text-sm font-semibold px-3 py-2 rounded-lg transition ${appStage === AppStage.WARDROBE ? 'text-indigo-600 bg-indigo-50/50' : 'text-slate-600 hover:text-slate-900'}`}
+                className={`text-sm font-semibold px-3 py-2 rounded-lg transition ${appStage === AppStage.WARDROBE ? 'text-teal-600 bg-teal-50/50' : 'text-stone-600 hover:text-stone-900'}`}
               >
                 Wardrobe
               </button>
@@ -537,6 +563,14 @@ export default function App() {
             activeReferenceTab={activeRefTab}
             onActiveReferenceTabChange={setActiveRefTab}
             onChange={(patch) => setWizardData((prev) => ({ ...prev, ...patch }))}
+            apiKey={wizardData.backend === 'local' ? '' : apiKeys[wizardData.backend] || ''}
+            hasServerKey={wizardData.backend === 'local' || providerStatus[wizardData.backend]}
+            onApiKeyChange={(value) => {
+              if (wizardData.backend !== 'local') setApiKeys((prev) => ({ ...prev, [wizardData.backend]: value }));
+            }}
+            localTextApiUrl={localEndpoints.text}
+            localVtonApiUrl={localEndpoints.vton}
+            onLocalEndpointsChange={(patch) => setLocalEndpoints((prev) => ({ ...prev, ...patch }))}
             onAddUserPhoto={handleAddUserPhoto}
             onRemoveUserPhoto={handleRemoveUserPhoto}
             wardrobeLibrary={wardrobeLibrary}

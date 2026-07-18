@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { createServer as createViteServer } from 'vite';
 import { createGeminiService } from './server/gemini.mjs';
 import { createLocalService } from './server/local.mjs';
+import { createOpenAIService } from './server/openai.mjs';
 import { createShoppingService } from './server/shopping.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -60,7 +61,22 @@ const shoppingService = createShoppingService({
 });
 
 // Inject the local VTON image generator into Gemini so it falls back for target garments
-const gemini = createGeminiService(process.env.GEMINI_API_KEY || process.env.API_KEY, localService.generateSingleImage);
+const configuredKeys = {
+  gemini: process.env.GEMINI_API_KEY || process.env.API_KEY || '',
+  openai: process.env.OPENAI_API_KEY || '',
+};
+
+const resolveService = (wizardData = {}, credentials = {}) => {
+  if (wizardData.backend === 'local') {
+    return createLocalService({
+      textApiUrl: credentials.localTextApiUrl || process.env.LLM_API_URL || 'http://localhost:11434/v1',
+      textModel: process.env.LLM_MODEL || 'gemma4:e4b',
+      vtonApiUrl: credentials.localVtonApiUrl || process.env.VTON_API_URL || 'http://127.0.0.1:7860',
+    });
+  }
+  if (wizardData.backend === 'openai') return createOpenAIService(credentials.apiKey || configuredKeys.openai, wizardData.model || 'gpt-5.6-terra');
+  return createGeminiService(credentials.apiKey || configuredKeys.gemini, localService.generateSingleImage, wizardData.model || 'gemini-3.5-flash');
+};
 
 const isPreview = process.argv.includes('--preview');
 const port = Number(process.env.PORT || 3000);
@@ -91,9 +107,14 @@ const handleApi = async (req, res) => {
   }
 
   try {
+    if (req.method === 'GET' && req.url === '/api/provider-status') {
+      sendJson(res, 200, { gemini: Boolean(configuredKeys.gemini), openai: Boolean(configuredKeys.openai) });
+      return true;
+    }
+
     if (req.method === 'POST' && req.url === '/api/generate-session') {
-      const { wizardData, isMore, existingLookTitles } = await readJsonBody(req);
-      const service = wizardData.backend === 'local' ? localService : gemini;
+      const { wizardData, credentials, isMore, existingLookTitles } = await readJsonBody(req);
+      const service = resolveService(wizardData, credentials);
       const payload = await service.generateStyleSession(
         wizardData,
         Boolean(isMore),
@@ -104,27 +125,29 @@ const handleApi = async (req, res) => {
     }
 
     if (req.method === 'POST' && req.url === '/api/generate-image') {
-      const { identityImage, garmentImage, prompt, isHaircut, backend } = await readJsonBody(req);
-      const service = (backend === 'local' || garmentImage) ? localService : gemini;
+      const { identityImage, garmentImage, prompt, isHaircut, wizardData, credentials } = await readJsonBody(req);
+      const service = resolveService(wizardData, credentials);
       const image = await service.generateSingleImage(identityImage, garmentImage, prompt, Boolean(isHaircut));
       sendJson(res, 200, { image });
       return true;
     }
 
     if (req.method === 'POST' && req.url === '/api/extract-wardrobe-cutout') {
-      const { image } = await readJsonBody(req);
+      const { image, wizardData, credentials } = await readJsonBody(req);
       if (!image || typeof image !== 'string') {
         sendJson(res, 400, { error: 'A wardrobe image is required.' });
         return true;
       }
-      const cutout = await gemini.extractWardrobeCutout(image);
+      const service = resolveService(wizardData, credentials);
+      if (!service.extractWardrobeCutout) throw new Error('Wardrobe cutouts require an OpenAI or Gemini model.');
+      const cutout = await service.extractWardrobeCutout(image);
       sendJson(res, 200, { image: cutout });
       return true;
     }
 
     if (req.method === 'POST' && req.url === '/api/transform-look') {
-      const { wizardData, identityImage, garmentImage, style, instruction } = await readJsonBody(req);
-      const service = wizardData.backend === 'local' ? localService : gemini;
+      const { wizardData, identityImage, garmentImage, style, instruction, credentials } = await readJsonBody(req);
+      const service = resolveService(wizardData, credentials);
       const payload = await service.transformLook(wizardData, identityImage, garmentImage, style, instruction);
       sendJson(res, 200, payload);
       return true;

@@ -34,7 +34,7 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({ onImageSelected, c
       <button 
         type="button"
         onClick={() => fileInputRef.current?.click()}
-        className="flex h-32 w-full flex-col items-center justify-center rounded-3xl border-2 border-dashed border-slate-300 text-slate-400 transition-all hover:border-indigo-500 hover:bg-indigo-50 hover:text-indigo-500 md:h-40"
+        className="flex h-32 w-full flex-col items-center justify-center rounded-3xl border-2 border-dashed border-stone-300 text-stone-400 transition-all hover:border-teal-500 hover:bg-teal-50 hover:text-teal-500 md:h-40"
       >
         <Plus className="w-8 h-8 mb-2" />
         <span className="text-xs font-medium">{label}</span>
@@ -46,7 +46,7 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({ onImageSelected, c
   return (
     <div 
       onClick={() => fileInputRef.current?.click()}
-      className="flex h-48 w-full cursor-pointer flex-col items-center justify-center rounded-3xl border-2 border-dashed border-slate-300 text-slate-400 transition-all hover:border-indigo-500 hover:bg-indigo-50 hover:text-indigo-500"
+      className="flex h-48 w-full cursor-pointer flex-col items-center justify-center rounded-3xl border-2 border-dashed border-stone-300 text-stone-400 transition-all hover:border-teal-500 hover:bg-teal-50 hover:text-teal-500"
     >
         <ImageIcon className="w-8 h-8 mb-2" />
         <span className="text-sm font-medium">{label}</span>
