@@ -163,6 +163,7 @@ export interface LookTransformResult {
 }
 
 export enum AppStage {
+  AUTH = 'AUTH',
   HOME = 'HOME',
   WARDROBE = 'WARDROBE',
   PROFILE = 'PROFILE',

@@ -1,4 +1,5 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { lazy, Suspense, useEffect, useMemo, useState } from 'react';
+import type { User } from '@supabase/supabase-js';
 import { Sparkles } from 'lucide-react';
 import { ProfilePage } from './components/profile/ProfilePage';
 import Button from './components/Button';
@@ -10,6 +11,8 @@ import { extractWardrobeCutout, generateStyleSession, getProviderStatus, regener
 import { loadSessionHistory, removeSessionHistoryItem, upsertSessionHistory, loadWardrobeLibrary, saveWardrobeLibrary } from './utils/sessionHistory';
 import { loadUserProfile, saveUserProfile } from './utils/userProfile';
 import { AppStage, ReferenceTab, SessionRecord, StyleAnalysis, StyleOption, UserProfile, WizardState } from './types';
+
+const AuthPage = lazy(() => import('./components/auth/AuthPage').then((module) => ({ default: module.AuthPage })));
 
 const DEFAULT_WIZARD_DATA: WizardState = {
   userPhotos: [],
@@ -52,6 +55,8 @@ const dedupeShopping = (styles: StyleOption[]) => {
 
 export default function App() {
   const [userProfile, setUserProfile] = useState<UserProfile>(() => loadUserProfile());
+  const [authUser, setAuthUser] = useState<User | null>(null);
+  const [authLoading, setAuthLoading] = useState(true);
   const [appStage, setAppStage] = useState<AppStage>(AppStage.HOME);
   const [wizardData, setWizardData] = useState<WizardState>(DEFAULT_WIZARD_DATA);
   const [analysis, setAnalysis] = useState<StyleAnalysis | null>(null);
@@ -77,8 +82,10 @@ export default function App() {
     vton: 'http://127.0.0.1:7860',
   });
 
+  const activeUserId = authUser?.id || userProfile.id;
+
   useEffect(() => {
-    setSessionHistory(loadSessionHistory(userProfile.id));
+    setSessionHistory(loadSessionHistory(activeUserId));
     setWardrobeLibrary(loadWardrobeLibrary());
     setWizardData((current) => ({
       ...current,
@@ -89,8 +96,49 @@ export default function App() {
       avoidColors: current.avoidColors || userProfile.avoidColors,
     }));
     getProviderStatus().then(setProviderStatus).catch(() => undefined);
-  }, []);
+  }, [activeUserId]);
 
+  useEffect(() => {
+    let disposed = false;
+    let unsubscribe: (() => void) | null = null;
+
+    void import('./services/supabase').then(({ supabase }) => {
+      if (disposed) return;
+      if (!supabase) {
+        setAuthLoading(false);
+        return;
+      }
+
+      supabase.auth.getSession().then(({ data }) => {
+        if (disposed) return;
+        setAuthUser(data.session?.user ?? null);
+        setAuthLoading(false);
+      });
+
+      const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+        setAuthUser(session?.user ?? null);
+        setAuthLoading(false);
+        if (session?.user) {
+          setAppStage((current) => current === AppStage.AUTH ? AppStage.PROFILE : current);
+          setUserProfile((current) => {
+            if (current.displayName !== 'Your profile' && current.email) return current;
+            const next = {
+              ...current,
+              displayName: session.user.user_metadata.full_name || session.user.user_metadata.name || current.displayName,
+              email: session.user.email || current.email,
+            };
+            return saveUserProfile(next);
+          });
+        }
+      });
+      unsubscribe = () => subscription.unsubscribe();
+    });
+
+    return () => {
+      disposed = true;
+      unsubscribe?.();
+    };
+  }, []);
   const credentials = wizardData.backend === 'local'
     ? { localTextApiUrl: localEndpoints.text, localVtonApiUrl: localEndpoints.vton }
     : { apiKey: apiKeys[wizardData.backend] };
@@ -112,7 +160,7 @@ export default function App() {
     const sessionId = sessionIdOverride ?? currentSessionId ?? crypto.randomUUID();
     const record: SessionRecord = {
       id: sessionId,
-      userId: userProfile.id,
+      userId: activeUserId,
       createdAt: new Date().toISOString(),
       wizardData,
       analysis: nextAnalysis,
@@ -122,7 +170,7 @@ export default function App() {
     };
 
     upsertSessionHistory(record);
-    setSessionHistory(loadSessionHistory(userProfile.id));
+    setSessionHistory(loadSessionHistory(activeUserId));
     setCurrentSessionId(sessionId);
   };
 
@@ -388,7 +436,7 @@ export default function App() {
 
   const handleDeleteSession = (sessionId: string) => {
     removeSessionHistoryItem(sessionId);
-    setSessionHistory(loadSessionHistory(userProfile.id));
+    setSessionHistory(loadSessionHistory(activeUserId));
   };
 
   const buildBriefText = (targetAnalysis: StyleAnalysis) => {
@@ -500,6 +548,16 @@ export default function App() {
     setAppStage(AppStage.WIZARD);
   };
 
+  const handleSignOut = async () => {
+    try {
+      const { signOut } = await import('./services/supabase');
+      await signOut();
+      setAuthUser(null);
+      setAppStage(AppStage.HOME);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Unable to sign out.');
+    }
+  };
   const headerAction = useMemo(() => {
     if (appStage === AppStage.HOME || appStage === AppStage.WARDROBE || appStage === AppStage.PROFILE) {
       return (
@@ -585,6 +643,14 @@ export default function App() {
           <div className="flex items-center gap-2">
             <button
               type="button"
+              disabled={authLoading}
+              onClick={() => authUser ? void handleSignOut() : setAppStage(AppStage.AUTH)}
+              className="hidden rounded-full px-3 py-2 text-xs font-semibold text-stone-500 transition hover:bg-stone-100 hover:text-stone-900 disabled:opacity-50 sm:inline-flex"
+            >
+              {authLoading ? 'Checking...' : authUser ? 'Sign out' : 'Sign in'}
+            </button>
+            <button
+              type="button"
               onClick={() => setAppStage(AppStage.PROFILE)}
               aria-label="Open profile"
               className="grid h-10 w-10 place-items-center rounded-full border border-stone-200 bg-white text-xs font-semibold text-stone-700 transition hover:border-teal-300 hover:bg-teal-50 hover:text-teal-800"
@@ -597,6 +663,11 @@ export default function App() {
       </header>
 
       <main className="py-8">
+        {appStage === AppStage.AUTH && (
+          <Suspense fallback={renderLoading('Loading secure sign-in...')}>
+            <AuthPage onContinueGuest={() => setAppStage(AppStage.HOME)} />
+          </Suspense>
+        )}
         {appStage === AppStage.HOME && (
           <HomePage
             sessions={sessionHistory}
@@ -624,6 +695,9 @@ export default function App() {
             wardrobeCount={wardrobeLibrary.length}
             onSave={handleSaveProfile}
             onStart={handleStartFromProfile}
+            authEmail={authUser?.email ?? null}
+            onSignIn={() => setAppStage(AppStage.AUTH)}
+            onSignOut={() => void handleSignOut()}
           />
         )}
         {appStage === AppStage.WIZARD && (

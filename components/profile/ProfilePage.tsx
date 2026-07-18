@@ -9,11 +9,14 @@ interface ProfilePageProps {
   wardrobeCount: number;
   onSave: (profile: UserProfile) => void;
   onStart: () => void;
+  authEmail: string | null;
+  onSignIn: () => void;
+  onSignOut: () => void;
 }
 
 const inputClass = 'w-full rounded-xl border border-stone-200 bg-white px-4 py-3 text-sm text-stone-900 outline-none transition placeholder:text-stone-400 focus:border-teal-500 focus:ring-4 focus:ring-teal-100';
 
-export const ProfilePage: React.FC<ProfilePageProps> = ({ profile, sessionCount, wardrobeCount, onSave, onStart }) => {
+export const ProfilePage: React.FC<ProfilePageProps> = ({ profile, sessionCount, wardrobeCount, onSave, onStart, authEmail, onSignIn, onSignOut }) => {
   const [draft, setDraft] = useState(profile);
   const [saved, setSaved] = useState(false);
 
@@ -108,8 +111,9 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ profile, sessionCount,
             <Button onClick={onStart} className="mt-6 w-full bg-white text-stone-950 hover:bg-stone-100">Start a style brief<ArrowRight className="ml-2 h-4 w-4" /></Button>
           </section>
           <section className="rounded-[2rem] border border-stone-200 bg-white p-6 shadow-sm">
-            <div className="flex items-center gap-2 text-sm font-semibold text-stone-900"><Cloud className="h-4 w-4 text-stone-500" />About login</div>
-            <p className="mt-3 text-sm leading-6 text-stone-500">A login should arrive with encrypted cloud sync. Until then, your profile and sessions remain private to this browser.</p>
+            <div className="flex items-center gap-2 text-sm font-semibold text-stone-900"><Cloud className="h-4 w-4 text-stone-500" />{authEmail ? 'Account connected' : 'Guest profile'}</div>
+            <p className="mt-3 break-words text-sm leading-6 text-stone-500">{authEmail ? `Signed in as ${authEmail}. Database persistence is the next layer we will connect.` : 'Sign in with email or Google to give this profile a verified identity. Guest mode continues to work locally.'}</p>
+            <button type="button" onClick={authEmail ? onSignOut : onSignIn} className="mt-4 text-sm font-semibold text-teal-700 hover:text-teal-900">{authEmail ? 'Sign out' : 'Sign in or create account'}</button>
           </section>
         </aside>
       </div>
