@@ -149,6 +149,9 @@ export default function App() {
   const credentials = wizardData.backend === 'local'
     ? { localTextApiUrl: localEndpoints.text, localVtonApiUrl: localEndpoints.vton }
     : { apiKey: apiKeys[wizardData.backend] };
+  const isActiveProviderConfigured = wizardData.backend === 'local'
+    ? Boolean(localEndpoints.text.trim() && localEndpoints.vton.trim())
+    : Boolean(providerStatus[wizardData.backend] || apiKeys[wizardData.backend]?.trim());
 
   const profileInitials = (userProfile.displayName || 'NC')
     .split(/\s+/)
@@ -556,7 +559,7 @@ export default function App() {
       preferredColors: userProfile.preferredColors || current.preferredColors,
       avoidColors: userProfile.avoidColors || current.avoidColors,
     }));
-    setAppStage(AppStage.MODELS);
+    setAppStage(AppStage.WIZARD);
   };
 
   const handleSignOut = async () => {
@@ -697,7 +700,6 @@ export default function App() {
             onStart={handleStartFromProfile}
             onRestore={handleRestoreSession}
             onDelete={handleDeleteSession}
-            onNavigateWardrobe={() => setAppStage(AppStage.WARDROBE)}
           />
         )}
 
@@ -713,7 +715,6 @@ export default function App() {
               if (wizardData.backend !== 'local') setApiKeys((prev) => ({ ...prev, [wizardData.backend]: value }));
             }}
             onLocalEndpointsChange={(patch) => setLocalEndpoints((prev) => ({ ...prev, ...patch }))}
-            onContinue={() => setAppStage(AppStage.WIZARD)}
           />
         )}
 
@@ -742,18 +743,31 @@ export default function App() {
           />
         )}
         {appStage === AppStage.WIZARD && (
-          <ProfileWizard
-            data={wizardData}
-            error={error}
-            activeReferenceTab={activeRefTab}
-            onActiveReferenceTabChange={setActiveRefTab}
-            onChange={(patch) => setWizardData((prev) => ({ ...prev, ...patch }))}
-            onAddUserPhoto={handleAddUserPhoto}
-            onRemoveUserPhoto={handleRemoveUserPhoto}
-            wardrobeLibrary={wardrobeLibrary.map((item) => item.image)}
-            onNavigateWardrobe={() => setAppStage(AppStage.WARDROBE)}
-            onGenerate={handleGenerate}
-          />
+          <>
+            {!isActiveProviderConfigured && (
+              <div className="mx-auto mb-6 flex w-full max-w-7xl flex-col gap-4 rounded-2xl border border-amber-200 bg-amber-50 px-5 py-4 text-amber-950 shadow-sm sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <p className="text-sm font-semibold">{wizardData.backend === 'local' ? 'Local AI setup required' : 'API key required'}</p>
+                  <p className="mt-1 text-sm leading-5 text-amber-800">{wizardData.backend === 'local' ? 'Please configure your local text and image endpoints in Model settings to generate your style collection.' : 'Please set an API key in Model settings to generate your style collection.'}</p>
+                </div>
+                <Button variant="outline" onClick={() => setAppStage(AppStage.MODELS)} className="shrink-0 border-amber-300 bg-white">
+                  Open Model settings
+                </Button>
+              </div>
+            )}
+            <ProfileWizard
+              data={wizardData}
+              error={error}
+              activeReferenceTab={activeRefTab}
+              onActiveReferenceTabChange={setActiveRefTab}
+              onChange={(patch) => setWizardData((prev) => ({ ...prev, ...patch }))}
+              onAddUserPhoto={handleAddUserPhoto}
+              onRemoveUserPhoto={handleRemoveUserPhoto}
+              wardrobeLibrary={wardrobeLibrary.map((item) => item.image)}
+              onNavigateWardrobe={() => setAppStage(AppStage.WARDROBE)}
+              onGenerate={handleGenerate}
+            />
+          </>
         )}
 
         {appStage === AppStage.LOADING && renderLoading(loadingMessage)}

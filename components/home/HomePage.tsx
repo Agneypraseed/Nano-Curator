@@ -8,7 +8,6 @@ interface HomePageProps {
   onStart: () => void;
   onRestore: (session: SessionRecord) => void;
   onDelete: (sessionId: string) => void;
-  onNavigateWardrobe: () => void;
 }
 
 const EXAMPLES = [
@@ -19,19 +18,7 @@ const EXAMPLES = [
 
 const EXAMPLE_LABELS = ['Urban Chic', 'Summer Vibes', 'Business Modern'];
 
-export const HomePage: React.FC<HomePageProps> = ({ sessions, onStart, onRestore, onDelete, onNavigateWardrobe }) => {
-  const wardrobeEntries = sessions.flatMap((session) => {
-    const ownedImages = [session.wizardData.garmentImage, ...session.wizardData.wardrobePhotos]
-      .filter((image): image is string => Boolean(image))
-      .map((image, index) => ({ id: `${session.id}-owned-${index}`, image: `data:image/jpeg;base64,${image}`, label: index === 0 && session.wizardData.garmentImage ? 'Current dress' : 'Saved wardrobe item', kind: 'Owned' }));
-    const selectedLooks = session.favoriteLookIds
-      .map((lookId) => session.analysis.styles.find((style) => style.id === lookId))
-      .filter((style): style is NonNullable<typeof style> => Boolean(style))
-      .map((style) => ({ id: `${session.id}-${style.id}`, image: session.styleImages[style.id], label: style.title, kind: 'Selected look' }))
-      .filter((entry) => Boolean(entry.image));
-    return [...ownedImages, ...selectedLooks];
-  });
-
+export const HomePage: React.FC<HomePageProps> = ({ sessions, onStart, onRestore, onDelete }) => {
   return (
     <div className="mx-auto flex w-full max-w-7xl flex-col gap-12 px-4 pb-20 sm:px-6 lg:px-8">
       <section className="flex min-h-[72vh] flex-col items-center justify-center gap-12 pt-10 text-center">
@@ -89,37 +76,6 @@ export const HomePage: React.FC<HomePageProps> = ({ sessions, onStart, onRestore
       </section>
 
       <section className="space-y-5">
-      <section id="wardrobe-history" className="space-y-5">
-        <div className="flex items-end justify-between gap-4">
-          <div className="flex items-center gap-2">
-            <History className="h-5 w-5 text-teal-600" />
-            <div>
-              <h2 className="text-xl font-semibold text-stone-900">Wardrobe history</h2>
-              <p className="text-sm text-stone-500">Your saved pieces and looks you selected from the generator.</p>
-            </div>
-          </div>
-          <Button variant="outline" onClick={onNavigateWardrobe} className="rounded-full px-5 py-2 text-sm">
-            Manage Wardrobe
-          </Button>
-        </div>
-        {wardrobeEntries.length === 0 ? (
-          <div className="rounded-[2rem] border border-dashed border-stone-300 bg-white p-10 text-center text-stone-500">Add a current dress or favorite a generated look to start your wardrobe.</div>
-        ) : (
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
-            {wardrobeEntries.map((entry) => (
-              <article key={entry.id} className="group overflow-hidden rounded-[1.5rem] border border-stone-200 bg-white shadow-sm">
-                <div className="aspect-[3/4] overflow-hidden rounded-2xl bg-stone-100">
-                  <img src={entry.image} alt={entry.label} className="h-full w-full object-cover transition duration-300 group-hover:scale-105" />
-                </div>
-                <div className="space-y-1 p-3">
-                  <span className="text-[10px] font-semibold uppercase tracking-[0.16em] text-teal-600">{entry.kind}</span>
-                  <h3 className="truncate text-sm font-medium text-stone-800">{entry.label}</h3>
-                </div>
-              </article>
-            ))}
-          </div>
-        )}
-      </section>
         <div className="flex items-center gap-2">
           <History className="h-5 w-5 text-stone-500" />
           <h2 className="text-xl font-semibold text-stone-900">Recent sessions</h2>

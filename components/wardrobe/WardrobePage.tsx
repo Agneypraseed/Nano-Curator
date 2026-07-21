@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { ArrowRight, Check, FolderHeart, Layers3, Loader2, ScanSearch, Sparkles, Trash2, WandSparkles } from 'lucide-react';
+import { Check, FolderHeart, Layers3, Loader2, ScanSearch, Sparkles, Trash2, WandSparkles } from 'lucide-react';
 import Button from '../Button';
 import { ImageUploader } from '../ImageUploader';
 import { AIProvider, WardrobeCategory, WardrobeItem } from '../../types';
@@ -131,32 +131,12 @@ export const WardrobePage: React.FC<Props> = ({
           <p className="max-w-md text-sm leading-6 text-stone-500">The AI identifies visible garments, creates clean catalog-style previews, and lets you review each piece before styling it.</p>
         </div>
 
-        <div className="mt-6 grid items-center gap-5 lg:grid-cols-[minmax(0,0.8fr)_auto_minmax(0,1.2fr)]">
-          <div>
-            <div className="group relative mx-auto aspect-[4/3] max-w-xl overflow-hidden rounded-2xl bg-stone-100">
-              <img src={WARDROBE_EXAMPLE.source} alt="Example uploaded outfit" className="h-full w-full object-cover" />
-              <div className="absolute inset-0 grid grid-cols-3 gap-2 bg-[#f5f1e9]/95 p-4 opacity-0 backdrop-blur-sm transition duration-300 group-hover:opacity-100">
-                {WARDROBE_EXAMPLE.pieces.map((piece) => <img key={piece.image} src={piece.image} alt={piece.label} className="h-full min-h-0 w-full rounded-xl bg-white object-contain p-1 shadow-sm" />)}
-              </div>
-              <span className="absolute bottom-3 left-3 rounded-full bg-stone-950/80 px-3 py-1.5 text-xs font-semibold text-white backdrop-blur-sm">Hover to preview extraction</span>
-            </div>
-            <p className="mt-3 text-sm font-semibold text-stone-900"><span className="mr-2 text-teal-700">01</span>Upload an outfit photo</p>
+        <div className="group relative mx-auto mt-6 aspect-[4/3] max-w-4xl overflow-hidden rounded-2xl bg-stone-100">
+          <img src={WARDROBE_EXAMPLE.source} alt="Example uploaded outfit" className="h-full w-full object-cover" />
+          <div className="absolute inset-0 grid grid-cols-3 gap-2 bg-[#f5f1e9]/95 p-4 opacity-0 backdrop-blur-sm transition duration-300 group-hover:opacity-100 sm:gap-4 sm:p-6">
+            {WARDROBE_EXAMPLE.pieces.map((piece) => <img key={piece.image} src={piece.image} alt={piece.label} className="h-full min-h-0 w-full rounded-xl bg-white object-contain p-1 shadow-sm sm:p-3" />)}
           </div>
-
-          <div className="hidden h-11 w-11 place-items-center rounded-full border border-stone-200 bg-stone-50 text-teal-700 lg:grid"><ArrowRight className="h-5 w-5" /></div>
-
-          <div>
-            <div className="grid grid-cols-3 gap-3">
-              {WARDROBE_EXAMPLE.pieces.map((piece) => <article key={piece.image} className="overflow-hidden rounded-2xl border border-stone-200 bg-[#f5f1e9]">
-                <img src={piece.image} alt={piece.label} className="aspect-square w-full object-contain p-2 sm:p-3" />
-                <div className="border-t border-stone-200 bg-white p-3">
-                  <p className="truncate text-xs font-semibold text-stone-900 sm:text-sm">{piece.label}</p>
-                  <p className="mt-1 text-[10px] uppercase tracking-wider text-stone-400">{piece.category}</p>
-                </div>
-              </article>)}
-            </div>
-            <p className="mt-3 text-sm font-semibold text-stone-900"><span className="mr-2 text-teal-700">02</span>Review the separated pieces</p>
-          </div>
+          <span className="absolute bottom-3 left-3 rounded-full bg-stone-950/80 px-3 py-1.5 text-xs font-semibold text-white backdrop-blur-sm">Hover to preview extraction</span>
         </div>
       </section>
 
