@@ -74,7 +74,7 @@ const resolveService = (wizardData = {}, credentials = {}) => {
       vtonApiUrl: credentials.localVtonApiUrl || process.env.VTON_API_URL || 'http://127.0.0.1:7860',
     });
   }
-  if (wizardData.backend === 'openai') return createOpenAIService(credentials.apiKey || configuredKeys.openai, wizardData.model || 'gpt-5.6-terra');
+  if (wizardData.backend === 'openai') return createOpenAIService(credentials.apiKey || configuredKeys.openai, 'gpt-5.4-nano');
   return createGeminiService(credentials.apiKey || configuredKeys.gemini, localService.generateSingleImage, wizardData.model || 'gemini-3.5-flash');
 };
 
@@ -132,16 +132,18 @@ const handleApi = async (req, res) => {
       return true;
     }
 
-    if (req.method === 'POST' && req.url === '/api/extract-wardrobe-cutout') {
+    if (req.method === 'POST' && req.url === '/api/extract-wardrobe-items') {
       const { image, wizardData, credentials } = await readJsonBody(req);
       if (!image || typeof image !== 'string') {
-        sendJson(res, 400, { error: 'A wardrobe image is required.' });
+        sendJson(res, 400, { error: 'An outfit image is required.' });
         return true;
       }
       const service = resolveService(wizardData, credentials);
-      if (!service.extractWardrobeCutout) throw new Error('Wardrobe cutouts require an OpenAI or Gemini model.');
-      const cutout = await service.extractWardrobeCutout(image);
-      sendJson(res, 200, { image: cutout });
+      if (!service.extractWardrobeItems) {
+        throw new Error('This local VTON endpoint can try clothes on a person, but it cannot extract separate garments. Select OpenAI or Gemini for outfit imports.');
+      }
+      const items = await service.extractWardrobeItems(image);
+      sendJson(res, 200, { items });
       return true;
     }
 

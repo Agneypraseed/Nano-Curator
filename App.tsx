@@ -7,10 +7,11 @@ import { HomePage } from './components/home/HomePage';
 import { ResultsPage } from './components/results/ResultsPage';
 import { ProfileWizard } from './components/wizard/ProfileWizard';
 import { WardrobePage } from './components/wardrobe/WardrobePage';
-import { extractWardrobeCutout, generateStyleSession, getProviderStatus, regenerateStyleImage, transformLook } from './services/api';
+import { ModelSettingsPage } from './components/models/ModelSettingsPage';
+import { extractWardrobeItems, generateStyleSession, getProviderStatus, regenerateStyleImage, sanitizeErrorMessage, transformLook } from './services/api';
 import { loadSessionHistory, removeSessionHistoryItem, upsertSessionHistory, loadWardrobeLibrary, saveWardrobeLibrary } from './utils/sessionHistory';
 import { loadUserProfile, saveUserProfile } from './utils/userProfile';
-import { AppStage, ReferenceTab, SessionRecord, StyleAnalysis, StyleOption, UserProfile, WizardState } from './types';
+import { AppStage, ReferenceTab, SessionRecord, StyleAnalysis, StyleOption, UserProfile, WardrobeItem, WizardState } from './types';
 
 const AuthPage = lazy(() => import('./components/auth/AuthPage').then((module) => ({ default: module.AuthPage })));
 
@@ -74,7 +75,7 @@ export default function App() {
   const [favoriteLookIds, setFavoriteLookIds] = useState<string[]>([]);
   const [compareLookIds, setCompareLookIds] = useState<string[]>([]);
 
-  const [wardrobeLibrary, setWardrobeLibrary] = useState<string[]>([]);
+  const [wardrobeLibrary, setWardrobeLibrary] = useState<WardrobeItem[]>([]);
   const [apiKeys, setApiKeys] = useState<Partial<Record<'gemini' | 'openai', string>>>({});
   const [providerStatus, setProviderStatus] = useState({ gemini: false, openai: false });
   const [localEndpoints, setLocalEndpoints] = useState({
@@ -83,6 +84,12 @@ export default function App() {
   });
 
   const activeUserId = authUser?.id || userProfile.id;
+
+  useEffect(() => {
+    if (!error) return;
+    const sanitized = sanitizeErrorMessage(error, 500);
+    if (sanitized !== error) setError(sanitized);
+  }, [error]);
 
   useEffect(() => {
     setSessionHistory(loadSessionHistory(activeUserId));
@@ -187,31 +194,35 @@ export default function App() {
     }));
   };
 
-  const handleAddWardrobeItem = async (base64: string): Promise<string> => {
-    let finalImage = base64;
-    try {
-      const { image } = await extractWardrobeCutout(base64, wizardData, credentials);
-      finalImage = image;
-    } catch (error) {
-      console.error('Wardrobe cutout extraction failed; retaining the source photo.', error);
-    }
+  const handleAddWardrobeItem = async (base64: string): Promise<WardrobeItem[]> => {
+    const { items } = await extractWardrobeItems(base64, wizardData, credentials);
+    const now = new Date().toISOString();
+    const newItems: WardrobeItem[] = items.map((item) => ({
+      ...item,
+      id: crypto.randomUUID(),
+      sourceImage: base64,
+      createdAt: now,
+      provider: wizardData.backend,
+    }));
     setWardrobeLibrary((prev) => {
-      const next = prev.includes(finalImage) ? prev : [...prev, finalImage];
+      const existing = new Set(prev.map((item) => item.image));
+      const next = [...prev, ...newItems.filter((item) => !existing.has(item.image))];
       saveWardrobeLibrary(next);
       return next;
     });
-    return finalImage;
+    return newItems;
   };
 
-  const handleRemoveWardrobeItem = (base64: string) => {
+  const handleRemoveWardrobeItem = (itemId: string) => {
+    const removed = wardrobeLibrary.find((item) => item.id === itemId);
     setWardrobeLibrary((prev) => {
-      const next = prev.filter((item) => item !== base64);
+      const next = prev.filter((item) => item.id !== itemId);
       saveWardrobeLibrary(next);
       return next;
     });
     setWizardData((prev) => ({
       ...prev,
-      wardrobePhotos: prev.wardrobePhotos.filter((photo) => photo !== base64),
+      wardrobePhotos: prev.wardrobePhotos.filter((photo) => photo !== removed?.image),
     }));
   };
 
@@ -545,7 +556,7 @@ export default function App() {
       preferredColors: userProfile.preferredColors || current.preferredColors,
       avoidColors: userProfile.avoidColors || current.avoidColors,
     }));
-    setAppStage(AppStage.WIZARD);
+    setAppStage(AppStage.MODELS);
   };
 
   const handleSignOut = async () => {
@@ -606,7 +617,7 @@ export default function App() {
     <div className="min-h-screen bg-stone-50 text-stone-900 font-sans selection:bg-teal-100 selection:text-teal-900">
       <header className="sticky top-0 z-50 border-b border-stone-200 bg-white/90 backdrop-blur-md">
         <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center gap-8">
+          <div className="flex items-center gap-4 lg:gap-7">
             <button type="button" className="flex items-center gap-3" onClick={() => setAppStage(AppStage.HOME)}>
               <div className="rounded-xl bg-stone-950 p-2 text-white">
                 <Sparkles className="h-5 w-5" />
@@ -616,47 +627,59 @@ export default function App() {
                 <div className="text-sm text-stone-600">AI style direction</div>
               </div>
             </button>
-            <nav className="hidden md:flex items-center gap-4">
+            <nav className="flex items-center gap-1 sm:gap-2" aria-label="Primary navigation">
               <button
                 type="button"
                 onClick={() => setAppStage(AppStage.HOME)}
-                className={`text-sm font-semibold px-3 py-2 rounded-lg transition ${appStage === AppStage.HOME ? 'text-teal-600 bg-teal-50/50' : 'text-stone-600 hover:text-stone-900'}`}
+                className={`hidden rounded-full px-3 py-2 text-sm font-semibold transition sm:inline-flex ${appStage === AppStage.HOME ? 'bg-teal-50 text-teal-800 ring-1 ring-teal-100' : 'text-stone-700 hover:bg-stone-100 hover:text-stone-950'}`}
               >
                 Home
               </button>
               <button
                 type="button"
                 onClick={() => setAppStage(AppStage.WARDROBE)}
-                className={`text-sm font-semibold px-3 py-2 rounded-lg transition ${appStage === AppStage.WARDROBE ? 'text-teal-600 bg-teal-50/50' : 'text-stone-600 hover:text-stone-900'}`}
+                className={`inline-flex rounded-full px-3 py-2 text-sm font-semibold transition ${appStage === AppStage.WARDROBE ? 'bg-teal-50 text-teal-800 ring-1 ring-teal-100' : 'text-stone-700 hover:bg-stone-100 hover:text-stone-950'}`}
               >
                 Wardrobe
               </button>
               <button
                 type="button"
-                onClick={() => setAppStage(AppStage.PROFILE)}
-                className={`text-sm font-semibold px-3 py-2 rounded-lg transition ${appStage === AppStage.PROFILE ? 'text-teal-600 bg-teal-50/50' : 'text-stone-600 hover:text-stone-900'}`}
+                onClick={() => setAppStage(AppStage.MODELS)}
+                className={`hidden rounded-full px-3 py-2 text-sm font-semibold transition sm:inline-flex ${appStage === AppStage.MODELS ? 'bg-teal-50 text-teal-800 ring-1 ring-teal-100' : 'text-stone-700 hover:bg-stone-100 hover:text-stone-950'}`}
               >
-                Profile
+                Model
               </button>
             </nav>
           </div>
           <div className="flex items-center gap-2">
-            <button
-              type="button"
-              disabled={authLoading}
-              onClick={() => authUser ? void handleSignOut() : setAppStage(AppStage.AUTH)}
-              className="hidden rounded-full px-3 py-2 text-xs font-semibold text-stone-500 transition hover:bg-stone-100 hover:text-stone-900 disabled:opacity-50 sm:inline-flex"
-            >
-              {authLoading ? 'Checking...' : authUser ? 'Sign out' : 'Sign in'}
-            </button>
-            <button
-              type="button"
-              onClick={() => setAppStage(AppStage.PROFILE)}
-              aria-label="Open profile"
-              className="grid h-10 w-10 place-items-center rounded-full border border-stone-200 bg-white text-xs font-semibold text-stone-700 transition hover:border-teal-300 hover:bg-teal-50 hover:text-teal-800"
-            >
-              {profileInitials}
-            </button>
+            {!authUser ? (
+              <button
+                type="button"
+                disabled={authLoading}
+                onClick={() => setAppStage(AppStage.AUTH)}
+                className="hidden min-h-10 items-center rounded-full border border-stone-300 bg-white px-4 py-2 text-sm font-semibold text-stone-900 shadow-sm transition hover:border-teal-600 hover:bg-teal-50 hover:text-teal-900 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:ring-offset-2 disabled:opacity-60 sm:inline-flex"
+              >
+                {authLoading ? 'Checking...' : 'Sign in'}
+              </button>
+            ) : (
+              <>
+                <button
+                  type="button"
+                  onClick={() => setAppStage(AppStage.PROFILE)}
+                  aria-label="Open profile"
+                  className="grid h-10 w-10 place-items-center rounded-full border border-stone-200 bg-white text-xs font-semibold text-stone-700 transition hover:border-teal-300 hover:bg-teal-50 hover:text-teal-800"
+                >
+                  {profileInitials}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void handleSignOut()}
+                  className="hidden rounded-full px-3 py-2 text-xs font-semibold text-stone-600 transition hover:bg-stone-100 hover:text-stone-950 lg:inline-flex"
+                >
+                  Sign out
+                </button>
+              </>
+            )}
             {headerAction}
           </div>
         </div>
@@ -678,9 +701,27 @@ export default function App() {
           />
         )}
 
+        {appStage === AppStage.MODELS && (
+          <ModelSettingsPage
+            data={wizardData}
+            apiKey={wizardData.backend === 'local' ? '' : apiKeys[wizardData.backend] || ''}
+            hasServerKey={wizardData.backend === 'local' || providerStatus[wizardData.backend]}
+            localTextApiUrl={localEndpoints.text}
+            localVtonApiUrl={localEndpoints.vton}
+            onChange={(patch) => setWizardData((prev) => ({ ...prev, ...patch }))}
+            onApiKeyChange={(value) => {
+              if (wizardData.backend !== 'local') setApiKeys((prev) => ({ ...prev, [wizardData.backend]: value }));
+            }}
+            onLocalEndpointsChange={(patch) => setLocalEndpoints((prev) => ({ ...prev, ...patch }))}
+            onContinue={() => setAppStage(AppStage.WIZARD)}
+          />
+        )}
+
         {appStage === AppStage.WARDROBE && (
           <WardrobePage
             wardrobeLibrary={wardrobeLibrary}
+            provider={wizardData.backend}
+            model={wizardData.model}
             onAddWardrobeItem={handleAddWardrobeItem}
             onRemoveWardrobeItem={handleRemoveWardrobeItem}
             onPlanSuggestion={handlePlanSuggestionFromWardrobe}
@@ -707,17 +748,9 @@ export default function App() {
             activeReferenceTab={activeRefTab}
             onActiveReferenceTabChange={setActiveRefTab}
             onChange={(patch) => setWizardData((prev) => ({ ...prev, ...patch }))}
-            apiKey={wizardData.backend === 'local' ? '' : apiKeys[wizardData.backend] || ''}
-            hasServerKey={wizardData.backend === 'local' || providerStatus[wizardData.backend]}
-            onApiKeyChange={(value) => {
-              if (wizardData.backend !== 'local') setApiKeys((prev) => ({ ...prev, [wizardData.backend]: value }));
-            }}
-            localTextApiUrl={localEndpoints.text}
-            localVtonApiUrl={localEndpoints.vton}
-            onLocalEndpointsChange={(patch) => setLocalEndpoints((prev) => ({ ...prev, ...patch }))}
             onAddUserPhoto={handleAddUserPhoto}
             onRemoveUserPhoto={handleRemoveUserPhoto}
-            wardrobeLibrary={wardrobeLibrary}
+            wardrobeLibrary={wardrobeLibrary.map((item) => item.image)}
             onNavigateWardrobe={() => setAppStage(AppStage.WARDROBE)}
             onGenerate={handleGenerate}
           />

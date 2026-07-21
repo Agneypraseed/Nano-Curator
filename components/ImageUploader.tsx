@@ -34,23 +34,24 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({ onImageSelected, c
       <button 
         type="button"
         onClick={() => fileInputRef.current?.click()}
-        className="flex h-32 w-full flex-col items-center justify-center rounded-3xl border-2 border-dashed border-stone-300 text-stone-400 transition-all hover:border-teal-500 hover:bg-teal-50 hover:text-teal-500 md:h-40"
+        className="group flex h-32 w-full flex-col items-center justify-center rounded-3xl border-2 border-dashed border-stone-300 bg-white text-stone-700 transition-all hover:border-teal-600 hover:bg-teal-50 hover:text-teal-800 focus:outline-none focus:ring-4 focus:ring-teal-100 md:h-40"
       >
-        <Plus className="w-8 h-8 mb-2" />
-        <span className="text-xs font-medium">{label}</span>
+        <span className="mb-3 grid h-10 w-10 place-items-center rounded-full bg-stone-900 text-white transition group-hover:bg-teal-700"><Plus className="h-5 w-5" /></span>
+        <span className="px-3 text-center text-xs font-semibold">{label}</span>
         <input ref={fileInputRef} type="file" className="hidden" accept="image/*" onChange={handleChange} />
       </button>
     );
   }
 
   return (
-    <div 
+    <button
+      type="button"
       onClick={() => fileInputRef.current?.click()}
-      className="flex h-48 w-full cursor-pointer flex-col items-center justify-center rounded-3xl border-2 border-dashed border-stone-300 text-stone-400 transition-all hover:border-teal-500 hover:bg-teal-50 hover:text-teal-500"
+      className="group flex h-48 w-full cursor-pointer flex-col items-center justify-center rounded-3xl border-2 border-dashed border-stone-300 bg-white text-stone-700 transition-all hover:border-teal-600 hover:bg-teal-50 hover:text-teal-800 focus:outline-none focus:ring-4 focus:ring-teal-100"
     >
-        <ImageIcon className="w-8 h-8 mb-2" />
-        <span className="text-sm font-medium">{label}</span>
+        <span className="mb-3 grid h-12 w-12 place-items-center rounded-2xl bg-stone-900 text-white transition group-hover:bg-teal-700"><ImageIcon className="h-5 w-5" /></span>
+        <span className="px-4 text-center text-sm font-semibold">{label}</span>
         <input ref={fileInputRef} type="file" className="hidden" accept="image/*" onChange={handleChange} />
-    </div>
+    </button>
   );
 };

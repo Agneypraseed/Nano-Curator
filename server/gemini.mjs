@@ -581,18 +581,46 @@ Return ONLY JSON with this shape:
     throw new Error('No image was generated.');
   };
 
-  const extractWardrobeCutout = async (sourceImage) => {
-    const response = await ai.models.generateContent({
-      model: IMAGE_MODEL,
-      contents: { parts: [{ inlineData: { data: sourceImage, mimeType: 'image/jpeg' } }, { text: 'Create one source-faithful ecommerce clothing catalog cutout from this photo. Extract only the dominant deliberately worn garment. Remove the person, body, skin, hair, mannequin, hanger, props, other layers, and scene. Preserve only clearly visible color, fabric, silhouette, construction, pattern, and legible marks. Do not invent hidden details, branding, text, pockets, or hardware. Center the complete garment with padding. Return a clean PNG with a fully transparent background and no shadow, reflection, caption, border, or watermark.' }] },
-      config: { imageConfig: { aspectRatio: '1:1' } },
+  const wardrobeCategories = new Set(['tops', 'bottoms', 'outerwear', 'dresses', 'shoes', 'accessories', 'other']);
+  const normalizeWardrobeCategory = (value) => wardrobeCategories.has(value) ? value : 'other';
+
+  const extractWardrobeItems = async (sourceImage) => {
+    const inventoryResponse = await ai.models.generateContent({
+      model: textModel,
+      contents: { parts: [
+        { inlineData: { data: sourceImage, mimeType: 'image/jpeg' } },
+        { text: 'Inventory every distinct deliberately worn garment in this outfit photo. Include tops, bottoms, outerwear, dresses, shoes, belts, bags, ties, and headwear. Exclude the person, jewelry, and scene. Keep layers separate. Return JSON only with items containing label, category (tops, bottoms, outerwear, dresses, shoes, accessories, or other), and a source-visible description of color, material, silhouette, construction, and pattern. State uncertainty instead of guessing. Maximum 8 items.' },
+      ] },
+      config: { responseMimeType: 'application/json' },
     });
 
-    const responseParts = response.candidates?.[0]?.content?.parts || [];
-    for (const part of responseParts) {
-      if (part.inlineData?.data) return part.inlineData.data;
+    let inventory;
+    try {
+      inventory = extractJson(inventoryResponse.text || '');
+    } catch {
+      throw new Error('Gemini could not identify the garments in this outfit.');
     }
-    throw new Error('Nano Banana could not create a wardrobe cutout.');
+    const detected = Array.isArray(inventory.items) ? inventory.items.slice(0, 8) : [];
+    if (!detected.length) throw new Error('No extractable garments were found in this photo.');
+
+    const items = [];
+    for (const detectedItem of detected) {
+      const label = String(detectedItem.label || 'Wardrobe item').slice(0, 80);
+      const category = normalizeWardrobeCategory(String(detectedItem.category || '').toLowerCase());
+      const description = String(detectedItem.description || label).slice(0, 900);
+      const response = await ai.models.generateContent({
+        model: IMAGE_MODEL,
+        contents: { parts: [
+          { inlineData: { data: sourceImage, mimeType: 'image/jpeg' } },
+          { text: 'Reconstruct ONLY this exact garment from the outfit photo as a clean ecommerce catalog cutout: ' + label + '. Source evidence: ' + description + '. Remove the wearer, body, skin, hair, underlayers, other clothing, props, and scene. Show one complete empty item, centered with generous padding. Preserve only source-supported details and invent nothing. Return a transparent-background PNG with no mannequin, hanger, shadow, reflection, caption, border, or watermark.' },
+        ] },
+        config: { imageConfig: { aspectRatio: '1:1' } },
+      });
+      const image = (response.candidates?.[0]?.content?.parts || []).find((part) => part.inlineData?.data)?.inlineData?.data;
+      if (image) items.push({ label, category, image });
+    }
+    if (!items.length) throw new Error('Gemini identified the outfit but could not create garment cutouts.');
+    return items;
   };
   const generateMakeoverGallery = async (baseIdentityImage, garmentImage, items) => {
     if (garmentImage && imageGeneratorOverride) {
@@ -710,7 +738,7 @@ Return ONLY JSON for one updated style object with this shape:
   return {
     analyzeStyleRequest,
     generateSingleImage,
-    extractWardrobeCutout,
+    extractWardrobeItems,
     generateStyleSession,
     transformLook,
   };

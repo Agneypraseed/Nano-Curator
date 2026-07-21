@@ -1,4 +1,4 @@
-import { LookTransformResult, ShoppingItem, StyleAnalysis, StyleOption, WizardState } from '../types';
+import { LookTransformResult, ShoppingItem, StyleAnalysis, StyleOption, WardrobeItem, WizardState } from '../types';
 
 interface SessionPayload {
   analysis: StyleAnalysis;
@@ -17,6 +17,30 @@ export interface ProviderStatus {
   openai: boolean;
 }
 
+export const sanitizeErrorMessage = (message: string, status: number) => {
+  if (!/<(?:!doctype|html|body)[\s>]/i.test(message)) return message;
+
+  const upstreamStatus = message.match(/\b(5\d\d)\b/)?.[1] || String(status);
+  const reference = message.match(/Cloudflare Ray ID:\s*<strong[^>]*>([^<]+)/i)?.[1]
+    || message.match(/(?:cf-ray|ray id)[:\s]+([a-f0-9-]+)/i)?.[1];
+
+  return `OpenAI is temporarily unavailable (HTTP ${upstreamStatus})${reference ? `; reference ${reference}` : ''}. Please try again.`;
+};
+
+const readErrorMessage = async (response: Response) => {
+  const body = await response.text();
+  try {
+    const parsed = JSON.parse(body);
+    const message = typeof parsed?.error === 'string' ? parsed.error : parsed?.error?.message;
+    if (message) return sanitizeErrorMessage(message, response.status);
+  } catch {
+    // Fall through to a safe plain-text message.
+  }
+
+  if (body) return sanitizeErrorMessage(body, response.status).slice(0, 800);
+  return `Request failed with HTTP ${response.status}.`;
+};
+
 const postJson = async <T>(url: string, payload: unknown): Promise<T> => {
   const response = await fetch(url, {
     method: 'POST',
@@ -27,8 +51,7 @@ const postJson = async <T>(url: string, payload: unknown): Promise<T> => {
   });
 
   if (!response.ok) {
-    const message = await response.text();
-    throw new Error(message || 'Request failed.');
+    throw new Error(await readErrorMessage(response));
   }
 
   return response.json() as Promise<T>;
@@ -78,5 +101,5 @@ export const transformLook = (
 export const visualSearch = (image: string) =>
   postJson<{ shoppingItems: ShoppingItem[] }>('/api/visual-search', { image });
 
-export const extractWardrobeCutout = (image: string, wizardData: WizardState, credentials: ProviderCredentials) =>
-  postJson<{ image: string }>('/api/extract-wardrobe-cutout', { image, wizardData, credentials });
+export const extractWardrobeItems = (image: string, wizardData: WizardState, credentials: ProviderCredentials) =>
+  postJson<{ items: Array<Pick<WardrobeItem, 'label' | 'category' | 'image' | 'cutoutReady'>> }>('/api/extract-wardrobe-items', { image, wizardData, credentials });

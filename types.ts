@@ -15,6 +15,19 @@ export type WeatherMode = 'auto' | 'manual';
 
 export type AIProvider = 'gemini' | 'openai' | 'local';
 
+export type WardrobeCategory = 'tops' | 'bottoms' | 'outerwear' | 'dresses' | 'shoes' | 'accessories' | 'other';
+
+export interface WardrobeItem {
+  id: string;
+  label: string;
+  category: WardrobeCategory;
+  image: string;
+  sourceImage?: string;
+  cutoutReady?: boolean;
+  createdAt: string;
+  provider: AIProvider | 'legacy';
+}
+
 export interface UserProfile {
   id: string;
   displayName: string;
@@ -166,6 +179,7 @@ export enum AppStage {
   AUTH = 'AUTH',
   HOME = 'HOME',
   WARDROBE = 'WARDROBE',
+  MODELS = 'MODELS',
   PROFILE = 'PROFILE',
   WIZARD = 'WIZARD',
   LOADING = 'LOADING',

@@ -2,7 +2,6 @@ import React from 'react';
 import { Check, Plus, CloudSun, Coins, Info, Link as LinkIcon, Palette, Shirt, ShoppingBag, Sparkles, Scissors, X } from 'lucide-react';
 import { ImageUploader } from '../ImageUploader';
 import Button from '../Button';
-import { ModelSelector } from './ModelSelector';
 import {
   BudgetLevel,
   ClimatePreference,
@@ -18,12 +17,6 @@ interface ProfileWizardProps {
   activeReferenceTab: ReferenceTab;
   onActiveReferenceTabChange: (tab: ReferenceTab) => void;
   onChange: (patch: Partial<WizardState>) => void;
-  apiKey: string;
-  hasServerKey: boolean;
-  onApiKeyChange: (value: string) => void;
-  localTextApiUrl: string;
-  localVtonApiUrl: string;
-  onLocalEndpointsChange: (patch: Partial<{ text: string; vton: string }>) => void;
   onAddUserPhoto: (base64: string) => void;
   onRemoveUserPhoto: (index: number) => void;
   wardrobeLibrary: string[];
@@ -50,12 +43,6 @@ export const ProfileWizard: React.FC<ProfileWizardProps> = ({
   activeReferenceTab,
   onActiveReferenceTabChange,
   onChange,
-  apiKey,
-  hasServerKey,
-  onApiKeyChange,
-  localTextApiUrl,
-  localVtonApiUrl,
-  onLocalEndpointsChange,
   onAddUserPhoto,
   onRemoveUserPhoto,
   wardrobeLibrary,
@@ -76,17 +63,6 @@ export const ProfileWizard: React.FC<ProfileWizardProps> = ({
           {error}
         </div>
       )}
-
-      <ModelSelector
-        data={data}
-        apiKey={apiKey}
-        hasServerKey={hasServerKey}
-        localTextApiUrl={localTextApiUrl}
-        localVtonApiUrl={localVtonApiUrl}
-        onChange={onChange}
-        onApiKeyChange={onApiKeyChange}
-        onLocalEndpointsChange={onLocalEndpointsChange}
-      />
 
       <div className="mb-8 rounded-[2.5rem] border border-stone-200 bg-white p-8 shadow-sm">
         <h2 className="mb-6 text-xl font-bold text-stone-900 flex items-center justify-center gap-2">

@@ -1,4 +1,4 @@
-import { SessionRecord } from '../types';
+import { SessionRecord, WardrobeItem } from '../types';
 
 const STORAGE_KEY = 'nano-curator-session-history';
 const SESSION_LIMIT = 4;
@@ -45,7 +45,16 @@ export const removeSessionHistoryItem = (sessionId: string) => {
 
 const WARDROBE_KEY = 'nano-curator-wardrobe-library';
 
-export const loadWardrobeLibrary = (): string[] => {
+const legacyWardrobeItem = (image: string, index: number): WardrobeItem => ({
+  id: 'legacy-' + index + '-' + image.slice(0, 12),
+  label: 'Wardrobe item ' + (index + 1),
+  category: 'other',
+  image,
+  createdAt: new Date(0).toISOString(),
+  provider: 'legacy',
+});
+
+export const loadWardrobeLibrary = (): WardrobeItem[] => {
   if (typeof window === 'undefined') {
     return [];
   }
@@ -55,24 +64,26 @@ export const loadWardrobeLibrary = (): string[] => {
     if (raw) {
       const parsed = JSON.parse(raw);
       if (Array.isArray(parsed)) {
-        return parsed;
+        return parsed
+          .filter((item): item is string | WardrobeItem => typeof item === 'string' || Boolean(item?.image))
+          .map((item, index) => typeof item === 'string' ? legacyWardrobeItem(item, index) : item);
       }
     }
 
     // Seed from session history if empty
     const sessions = loadSessionHistory();
     const seen = new Set<string>();
-    const items: string[] = [];
+    const items: WardrobeItem[] = [];
     sessions.forEach((session) => {
       const garment = session.wizardData.garmentImage;
       if (garment && !seen.has(garment)) {
         seen.add(garment);
-        items.push(garment);
+        items.push(legacyWardrobeItem(garment, items.length));
       }
       session.wizardData.wardrobePhotos.forEach((photo) => {
         if (photo && !seen.has(photo)) {
           seen.add(photo);
-          items.push(photo);
+          items.push(legacyWardrobeItem(photo, items.length));
         }
       });
     });
@@ -86,7 +97,7 @@ export const loadWardrobeLibrary = (): string[] => {
   }
 };
 
-export const saveWardrobeLibrary = (items: string[]) => {
+export const saveWardrobeLibrary = (items: WardrobeItem[]) => {
   if (typeof window === 'undefined') {
     return;
   }

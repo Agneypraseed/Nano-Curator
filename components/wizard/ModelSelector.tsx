@@ -20,13 +20,11 @@ const providers = [
 ];
 
 const openAIModels = [
-  { value: 'gpt-5.6-terra', label: 'GPT-5.6 Terra - balanced' },
-  { value: 'gpt-5.6-sol', label: 'GPT-5.6 Sol - most capable' },
-  { value: 'gpt-5.6-luna', label: 'GPT-5.6 Luna - efficient' },
+  { value: 'gpt-5.4-nano', label: 'GPT-5.4 Nano - lowest cost' },
 ];
 
 const defaultModel = (provider: AIProvider) => {
-  if (provider === 'openai') return 'gpt-5.6-terra';
+  if (provider === 'openai') return 'gpt-5.4-nano';
   if (provider === 'gemini') return 'gemini-3.5-flash';
   return 'local';
 };
@@ -52,7 +50,7 @@ export const ModelSelector: React.FC<ModelSelectorProps> = ({
           <p className="mb-1 text-xs font-semibold uppercase tracking-[0.2em] text-teal-700">AI provider</p>
           <h2 className="text-xl font-semibold tracking-tight text-stone-950">Choose one provider, then choose a model</h2>
         </div>
-        <p className="max-w-sm text-sm leading-6 text-stone-500">Each cloud provider shares one key across all of its models. Overrides stay in this tab only.</p>
+        <p className="max-w-sm text-sm leading-6 text-stone-500">Each cloud provider shares one key across all of its models. Settings stay with your current session.</p>
       </div>
 
       <div className="grid gap-3 p-4 sm:grid-cols-3">
