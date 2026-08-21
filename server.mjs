@@ -76,7 +76,7 @@ const resolveService = (wizardData = {}, credentials = {}) => {
       vtonApiUrl: credentials.localVtonApiUrl || process.env.VTON_API_URL || 'http://127.0.0.1:7860',
     });
   }
-  if (wizardData.backend === 'openai') return createOpenAIService(credentials.apiKey || configuredKeys.openai, 'gpt-5.4-nano');
+  if (wizardData.backend === 'openai') return createOpenAIService(credentials.apiKey || configuredKeys.openai, wizardData.model || 'gpt-5.4-nano');
   if (wizardData.backend === 'openrouter') return createOpenRouterService(credentials.apiKey || configuredKeys.openrouter, wizardData.model || 'stealth/ox-alpha');
   return createGeminiService(credentials.apiKey || configuredKeys.gemini, localService.generateSingleImage, wizardData.model || 'gemini-3.5-flash');
 };

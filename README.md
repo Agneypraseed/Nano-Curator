@@ -36,7 +36,7 @@ The in-app hover preview brings those pieces forward as a reviewable wardrobe se
 
 ### Choose where the AI runs
 
-Model settings support OpenAI, Google Gemini, and private local services. API keys entered in the app remain in memory for the current browser tab and are not saved with style sessions.
+Model settings support OpenAI, Google Gemini, OpenRouter, and private local services. Cloud providers include preset models and accept a custom model ID. API keys entered in the app remain in memory for the current browser tab and are not saved with style sessions.
 
 ![OpenAI, Gemini, and local model settings](./docs/screenshots/model-settings.png)
 

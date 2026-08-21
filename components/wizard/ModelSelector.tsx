@@ -20,6 +20,19 @@ const providers = [
   { id: 'local' as const, name: 'Local', note: 'Private', detail: 'Connect your local text and virtual try-on services.' },
 ];
 
+const modelOptions: Partial<Record<Exclude<AIProvider, 'local'>, Array<{ value: string; label: string }>>> = {
+  openai: [
+    { value: 'gpt-5.4-nano', label: 'GPT-5.4 Nano' },
+  ],
+  gemini: [
+    { value: 'gemini-3.5-flash', label: 'Gemini 3.5 Flash' },
+  ],
+  openrouter: [
+    { value: 'stealth/ox-alpha', label: 'Ox Alpha' },
+    { value: 'openrouter/free', label: 'OpenRouter Free Router' },
+  ],
+};
+
 const defaultModel = (provider: AIProvider) => {
   if (provider === 'openai') return 'gpt-5.4-nano';
   if (provider === 'gemini') return 'gemini-3.5-flash';
@@ -40,6 +53,9 @@ export const ModelSelector: React.FC<ModelSelectorProps> = ({
   const selectProvider = (provider: AIProvider) => {
     onChange({ backend: provider, model: data.backend === provider ? data.model : defaultModel(provider) });
   };
+
+  const availableModels = data.backend === 'local' ? [] : modelOptions[data.backend] || [];
+  const isCustomModel = data.backend !== 'local' && !availableModels.some((model) => model.value === data.model);
 
   return (
     <section className="mb-8 overflow-hidden rounded-[2rem] border border-stone-200 bg-white shadow-[0_20px_60px_-42px_rgba(28,25,23,0.45)]">
@@ -78,7 +94,30 @@ export const ModelSelector: React.FC<ModelSelectorProps> = ({
       </div>
 
       {data.backend !== 'local' ? (
-        <div className="border-t border-stone-100 bg-stone-50/70 px-5 py-5">
+        <div className="grid gap-4 border-t border-stone-100 bg-stone-50/70 px-5 py-5 md:grid-cols-2">
+          <label className="space-y-2">
+            <span className="block text-xs font-semibold uppercase tracking-[0.16em] text-stone-500">Model</span>
+            <select
+              value={isCustomModel ? '__custom__' : data.model}
+              onChange={(event) => onChange({ model: event.target.value === '__custom__' ? '' : event.target.value })}
+              className="w-full rounded-xl border border-stone-200 bg-white px-4 py-3 text-sm text-stone-900 outline-none transition focus:border-teal-500 focus:ring-4 focus:ring-teal-100"
+            >
+              {availableModels.map((model) => <option key={model.value} value={model.value}>{model.label}</option>)}
+              <option value="__custom__">Enter a custom model ID...</option>
+            </select>
+            {isCustomModel && (
+              <input
+                type="text"
+                value={data.model}
+                onChange={(event) => onChange({ model: event.target.value })}
+                placeholder={data.backend === 'openrouter' ? 'provider/model-name or provider/model-name:free' : 'Enter the provider model ID'}
+                autoComplete="off"
+                className="w-full rounded-xl border border-stone-200 bg-white px-4 py-3 text-sm text-stone-900 outline-none transition placeholder:text-stone-400 focus:border-teal-500 focus:ring-4 focus:ring-teal-100"
+              />
+            )}
+            <span className="block text-xs leading-5 text-stone-500">Use a model ID supported by the selected provider.</span>
+          </label>
+
           <label className="space-y-2">
             <span className="flex items-center justify-between gap-3 text-xs font-semibold uppercase tracking-[0.16em] text-stone-500">
               <span className="flex items-center gap-2"><KeyRound className="h-3.5 w-3.5" />{data.backend === 'openai' ? 'OpenAI' : data.backend === 'openrouter' ? 'OpenRouter' : 'Gemini'} API key</span>
