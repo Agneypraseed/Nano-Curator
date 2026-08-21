@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { Check, FolderHeart, Layers3, Loader2, ScanSearch, Sparkles, Trash2, WandSparkles } from 'lucide-react';
 import Button from '../Button';
+import { ErrorMessage } from '../ErrorMessage';
 import { ImageUploader } from '../ImageUploader';
 import { AIProvider, WardrobeCategory, WardrobeItem } from '../../types';
 
@@ -92,7 +93,7 @@ export const WardrobePage: React.FC<Props> = ({
             {sourcePreview ? (
               <div className="grid w-full max-w-2xl grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-4">
                 <div className="overflow-hidden rounded-2xl border border-stone-200 bg-stone-100 shadow-sm">
-                  <img src={imageSource(sourcePreview)} alt="Uploaded outfit" className="aspect-[3/4] h-full w-full object-cover" />
+                  <img src={imageSource(sourcePreview)} alt="Uploaded outfit" className="aspect-[3/4] h-full w-full object-contain bg-[#f5f1e9]" />
                 </div>
                 <div className="flex flex-col items-center gap-2">
                   {isExtracting ? <Loader2 className="h-6 w-6 animate-spin text-teal-700" /> : <WandSparkles className="h-6 w-6 text-teal-700" />}
@@ -132,7 +133,7 @@ export const WardrobePage: React.FC<Props> = ({
         </div>
 
         <div className="group relative mx-auto mt-6 aspect-[4/3] max-w-4xl overflow-hidden rounded-2xl bg-stone-100">
-          <img src={WARDROBE_EXAMPLE.source} alt="Example uploaded outfit" className="h-full w-full object-cover" />
+          <img src={WARDROBE_EXAMPLE.source} alt="Example uploaded outfit" className="h-full w-full object-contain bg-[#f5f1e9]" />
           <div className="absolute inset-0 grid grid-cols-3 gap-2 bg-[#f5f1e9]/95 p-4 opacity-0 backdrop-blur-sm transition duration-300 group-hover:opacity-100 sm:gap-4 sm:p-6">
             {WARDROBE_EXAMPLE.pieces.map((piece) => <img key={piece.image} src={piece.image} alt={piece.label} className="h-full min-h-0 w-full rounded-xl bg-white object-contain p-1 shadow-sm sm:p-3" />)}
           </div>
@@ -141,7 +142,7 @@ export const WardrobePage: React.FC<Props> = ({
       </section>
 
       {provider === 'local' && <div className="mt-5 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-900">Your local endpoint is configured for virtual try-on, not garment extraction. Select OpenAI or Gemini before importing an outfit.</div>}
-      {error && <div className="mt-5 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>}
+      {error && <div className="mt-5 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700"><ErrorMessage message={error} /></div>}
 
       <section className="mt-12">
         <div className="flex flex-col justify-between gap-5 border-b border-stone-200 pb-5 sm:flex-row sm:items-end">

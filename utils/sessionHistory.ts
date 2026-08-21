@@ -21,8 +21,37 @@ export const loadSessionHistory = (userId?: string): SessionRecord[] => {
   }
 };
 
+const compactSession = (session: SessionRecord): SessionRecord => ({
+  ...session,
+  wizardData: {
+    ...session.wizardData,
+    userPhotos: [],
+    wardrobePhotos: [],
+    referenceImage: null,
+    garmentImage: null,
+  },
+  styleImages: {},
+  haircutImage: null,
+});
+
 const writeHistory = (sessions: SessionRecord[]) => {
-  window.localStorage.setItem(STORAGE_KEY, JSON.stringify(sessions.slice(0, SESSION_LIMIT)));
+  const attempts = [
+    sessions.slice(0, SESSION_LIMIT),
+    sessions.slice(0, 2),
+    sessions.slice(0, 1).map(compactSession),
+  ];
+
+  for (const attempt of attempts) {
+    try {
+      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(attempt));
+      return true;
+    } catch (error) {
+      console.warn('Session history is too large for browser storage; trying a smaller backup.', error);
+    }
+  }
+
+  console.warn('Unable to save session history because browser storage is full. The current session remains available until refresh.');
+  return false;
 };
 
 export const upsertSessionHistory = (session: SessionRecord) => {

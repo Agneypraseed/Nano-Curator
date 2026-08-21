@@ -13,7 +13,7 @@ export type DressCodePreference =
 
 export type WeatherMode = 'auto' | 'manual';
 
-export type AIProvider = 'gemini' | 'openai' | 'local';
+export type AIProvider = 'gemini' | 'openai' | 'openrouter' | 'local';
 
 export type WardrobeCategory = 'tops' | 'bottoms' | 'outerwear' | 'dresses' | 'shoes' | 'accessories' | 'other';
 

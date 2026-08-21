@@ -2,6 +2,7 @@ import React from 'react';
 import { Check, Plus, CloudSun, Coins, Info, Link as LinkIcon, Palette, Shirt, ShoppingBag, Sparkles, Scissors, X } from 'lucide-react';
 import { ImageUploader } from '../ImageUploader';
 import Button from '../Button';
+import { ErrorMessage } from '../ErrorMessage';
 import {
   BudgetLevel,
   ClimatePreference,
@@ -60,7 +61,7 @@ export const ProfileWizard: React.FC<ProfileWizardProps> = ({
 
       {error && (
         <div className="mb-8 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-          {error}
+          <ErrorMessage message={error} />
         </div>
       )}
 

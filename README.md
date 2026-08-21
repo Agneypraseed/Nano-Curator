@@ -26,14 +26,9 @@ The wardrobe workspace extracts individual pieces from a clear outfit or flat-la
 #### One outfit photo, organized wardrobe pieces
 
 Source outfit:
-
-![Source outfit used for wardrobe extraction](./public/examples/wardrobe/source-outfit.png)
-
-Catalog previews shown by the wardrobe extraction demo:
-
-![Lavender polo extracted from the outfit](./public/examples/wardrobe/extracted-piece-1.png)
-![Navy trousers extracted from the outfit](./public/examples/wardrobe/extracted-piece-2.png)
-![Long-sleeve polo wardrobe variation](./public/examples/wardrobe/extracted-piece-3.png)
+<img src="./public/examples/wardrobe/source-outfit.png"
+     alt="Source outfit used for wardrobe extraction"
+     width="200">
 
 The in-app hover preview brings those pieces forward as a reviewable wardrobe set:
 
@@ -61,6 +56,7 @@ Copy `.env.example` to `.env.local` and configure the providers you want to use:
 ```bash
 GEMINI_API_KEY=...
 OPENAI_API_KEY=...
+OPENROUTER_API_KEY=...
 
 # Optional private local services
 LLM_API_URL=http://localhost:11434/v1

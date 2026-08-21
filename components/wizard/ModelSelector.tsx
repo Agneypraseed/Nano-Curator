@@ -16,16 +16,14 @@ interface ModelSelectorProps {
 const providers = [
   { id: 'openai' as const, name: 'OpenAI', note: 'Cloud', detail: 'One key for every available OpenAI model.' },
   { id: 'gemini' as const, name: 'Gemini', note: 'Google', detail: 'One key for Gemini analysis and image generation.' },
+  { id: 'openrouter' as const, name: 'OpenRouter', note: 'Cloud', detail: 'Use OpenRouter models through one API key.' },
   { id: 'local' as const, name: 'Local', note: 'Private', detail: 'Connect your local text and virtual try-on services.' },
-];
-
-const openAIModels = [
-  { value: 'gpt-5.4-nano', label: 'GPT-5.4 Nano - lowest cost' },
 ];
 
 const defaultModel = (provider: AIProvider) => {
   if (provider === 'openai') return 'gpt-5.4-nano';
   if (provider === 'gemini') return 'gemini-3.5-flash';
+  if (provider === 'openrouter') return 'stealth/ox-alpha';
   return 'local';
 };
 
@@ -48,12 +46,12 @@ export const ModelSelector: React.FC<ModelSelectorProps> = ({
       <div className="flex flex-col gap-2 border-b border-stone-100 px-6 py-5 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <p className="mb-1 text-xs font-semibold uppercase tracking-[0.2em] text-teal-700">AI provider</p>
-          <h2 className="text-xl font-semibold tracking-tight text-stone-950">Choose one provider, then choose a model</h2>
+          <h2 className="text-xl font-semibold tracking-tight text-stone-950">Choose a provider and add its key</h2>
         </div>
         <p className="max-w-sm text-sm leading-6 text-stone-500">Each cloud provider shares one key across all of its models. Settings stay with your current session.</p>
       </div>
 
-      <div className="grid gap-3 p-4 sm:grid-cols-3">
+      <div className="grid gap-3 p-4 sm:grid-cols-2 lg:grid-cols-4">
         {providers.map((provider) => {
           const selected = data.backend === provider.id;
           const cardClass = selected
@@ -80,32 +78,17 @@ export const ModelSelector: React.FC<ModelSelectorProps> = ({
       </div>
 
       {data.backend !== 'local' ? (
-        <div className="grid gap-4 border-t border-stone-100 bg-stone-50/70 px-5 py-5 md:grid-cols-2">
-          <label className="space-y-2">
-            <span className="block text-xs font-semibold uppercase tracking-[0.16em] text-stone-500">Model</span>
-            {data.backend === 'openai' ? (
-              <select
-                value={data.model}
-                onChange={(event) => onChange({ model: event.target.value })}
-                className="w-full rounded-xl border border-stone-200 bg-white px-4 py-3 text-sm text-stone-900 outline-none transition focus:border-teal-500 focus:ring-4 focus:ring-teal-100"
-              >
-                {openAIModels.map((model) => <option key={model.value} value={model.value}>{model.label}</option>)}
-              </select>
-            ) : (
-              <div className="rounded-xl border border-stone-200 bg-white px-4 py-3 text-sm font-medium text-stone-900">Gemini 3.5 Flash</div>
-            )}
-          </label>
-
+        <div className="border-t border-stone-100 bg-stone-50/70 px-5 py-5">
           <label className="space-y-2">
             <span className="flex items-center justify-between gap-3 text-xs font-semibold uppercase tracking-[0.16em] text-stone-500">
-              <span className="flex items-center gap-2"><KeyRound className="h-3.5 w-3.5" />{data.backend === 'openai' ? 'OpenAI' : 'Gemini'} API key</span>
+              <span className="flex items-center gap-2"><KeyRound className="h-3.5 w-3.5" />{data.backend === 'openai' ? 'OpenAI' : data.backend === 'openrouter' ? 'OpenRouter' : 'Gemini'} API key</span>
               <span className={hasServerKey ? 'text-teal-700' : 'text-amber-700'}>{hasServerKey ? 'Server key configured' : 'Required'}</span>
             </span>
             <input
               type="password"
               value={apiKey}
               onChange={(event) => onApiKeyChange(event.target.value)}
-              placeholder={hasServerKey ? 'Using server key - enter to override' : data.backend === 'openai' ? 'sk-...' : 'AIza...'}
+              placeholder={hasServerKey ? 'Using server key - enter to override' : data.backend === 'gemini' ? 'AIza...' : 'sk-...'}
               autoComplete="off"
               className="w-full rounded-xl border border-stone-200 bg-white px-4 py-3 text-sm text-stone-900 outline-none transition placeholder:text-stone-400 focus:border-teal-500 focus:ring-4 focus:ring-teal-100"
             />

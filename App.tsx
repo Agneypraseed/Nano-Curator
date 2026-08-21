@@ -76,8 +76,8 @@ export default function App() {
   const [compareLookIds, setCompareLookIds] = useState<string[]>([]);
 
   const [wardrobeLibrary, setWardrobeLibrary] = useState<WardrobeItem[]>([]);
-  const [apiKeys, setApiKeys] = useState<Partial<Record<'gemini' | 'openai', string>>>({});
-  const [providerStatus, setProviderStatus] = useState({ gemini: false, openai: false });
+  const [apiKeys, setApiKeys] = useState<Partial<Record<'gemini' | 'openai' | 'openrouter', string>>>({});
+  const [providerStatus, setProviderStatus] = useState({ gemini: false, openai: false, openrouter: false });
   const [localEndpoints, setLocalEndpoints] = useState({
     text: 'http://localhost:11434/v1',
     vton: 'http://127.0.0.1:7860',
@@ -236,7 +236,8 @@ export default function App() {
     }
 
     if (wizardData.backend !== 'local' && !providerStatus[wizardData.backend] && !apiKeys[wizardData.backend]?.trim()) {
-      setError('Please add your ' + (wizardData.backend === 'openai' ? 'OpenAI' : 'Gemini') + ' API key for the selected model.');
+      const providerName = wizardData.backend === 'openai' ? 'OpenAI' : wizardData.backend === 'openrouter' ? 'OpenRouter' : 'Gemini';
+      setError('Please add your ' + providerName + ' API key.');
       return;
     }
 

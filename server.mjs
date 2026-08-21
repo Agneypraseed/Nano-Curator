@@ -6,6 +6,7 @@ import { createServer as createViteServer } from 'vite';
 import { createGeminiService } from './server/gemini.mjs';
 import { createLocalService } from './server/local.mjs';
 import { createOpenAIService } from './server/openai.mjs';
+import { createOpenRouterService } from './server/openrouter.mjs';
 import { createShoppingService } from './server/shopping.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -64,6 +65,7 @@ const shoppingService = createShoppingService({
 const configuredKeys = {
   gemini: process.env.GEMINI_API_KEY || process.env.API_KEY || '',
   openai: process.env.OPENAI_API_KEY || '',
+  openrouter: process.env.OPENROUTER_API_KEY || '',
 };
 
 const resolveService = (wizardData = {}, credentials = {}) => {
@@ -75,6 +77,7 @@ const resolveService = (wizardData = {}, credentials = {}) => {
     });
   }
   if (wizardData.backend === 'openai') return createOpenAIService(credentials.apiKey || configuredKeys.openai, 'gpt-5.4-nano');
+  if (wizardData.backend === 'openrouter') return createOpenRouterService(credentials.apiKey || configuredKeys.openrouter, wizardData.model || 'stealth/ox-alpha');
   return createGeminiService(credentials.apiKey || configuredKeys.gemini, localService.generateSingleImage, wizardData.model || 'gemini-3.5-flash');
 };
 
@@ -108,7 +111,7 @@ const handleApi = async (req, res) => {
 
   try {
     if (req.method === 'GET' && req.url === '/api/provider-status') {
-      sendJson(res, 200, { gemini: Boolean(configuredKeys.gemini), openai: Boolean(configuredKeys.openai) });
+      sendJson(res, 200, { gemini: Boolean(configuredKeys.gemini), openai: Boolean(configuredKeys.openai), openrouter: Boolean(configuredKeys.openrouter) });
       return true;
     }
 

@@ -15,6 +15,7 @@ export interface ProviderCredentials {
 export interface ProviderStatus {
   gemini: boolean;
   openai: boolean;
+  openrouter: boolean;
 }
 
 export const sanitizeErrorMessage = (message: string, status: number) => {
