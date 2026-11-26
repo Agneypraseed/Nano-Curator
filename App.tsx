@@ -10,7 +10,9 @@ import { WardrobePage } from './components/wardrobe/WardrobePage';
 import { ModelSettingsPage } from './components/models/ModelSettingsPage';
 import { enhanceWardrobeItem, extractWardrobeItems, findWardrobeMatches, generateStyleSession, getProviderStatus, regenerateStyleImage, sanitizeErrorMessage, transformLook, visualSearch, type ProviderStatus } from './services/api';
 import { loadSessionHistory, removeSessionHistoryItem, upsertSessionHistory, loadWardrobeLibrary, saveWardrobeLibrary } from './utils/sessionHistory';
+import { imageSource } from './utils/imageSource';
 import { loadUserProfile, saveUserProfile } from './utils/userProfile';
+import { hasUsableCutoutSize } from './utils/wardrobeCutout.mjs';
 import { AIProvider, AppStage, ReferenceTab, SessionRecord, StyleAnalysis, StyleOption, UserProfile, WardrobeEnhancement, WardrobeExtractor, WardrobeItem, WardrobeSearchMethod, WizardState } from './types';
 import { providerLabels } from './utils/providers';
 
@@ -113,10 +115,32 @@ export default function App() {
   }, [error]);
 
   useEffect(() => {
+    let disposed = false;
     activeUserRef.current = activeUserId;
     setSessionHistory(loadSessionHistory(activeUserId));
-    wardrobeRef.current = loadWardrobeLibrary();
-    setWardrobeLibrary(wardrobeRef.current);
+    const savedWardrobe = loadWardrobeLibrary();
+    wardrobeRef.current = savedWardrobe;
+    setWardrobeLibrary(savedWardrobe);
+    const uncheckedCutouts = savedWardrobe.filter((item) => item.extractor === 'meta-sam' && !item.cutoutQuality);
+    if (uncheckedCutouts.length) {
+      void Promise.all(uncheckedCutouts.map(async (item): Promise<[string, WardrobeItem['cutoutQuality']]> => {
+        const image = new Image();
+        image.src = imageSource(item.image);
+        const usable = await image.decode()
+          .then(() => hasUsableCutoutSize(item.category, image.naturalWidth, image.naturalHeight))
+          .catch(() => false);
+        return [item.id, usable ? 'usable' : 'incomplete'];
+      })).then((results) => {
+        if (disposed) return;
+        const qualityById = new Map(results);
+        const next = wardrobeRef.current.map((item) => {
+          const cutoutQuality = qualityById.get(item.id);
+          return cutoutQuality && !item.cutoutQuality ? { ...item, cutoutQuality } : item;
+        });
+        wardrobeRef.current = next;
+        setWardrobeLibrary(next);
+      });
+    }
     setWizardData((current) => ({
       ...current,
       goals: current.goals || userProfile.styleGoals,
@@ -126,6 +150,7 @@ export default function App() {
       avoidColors: current.avoidColors || userProfile.avoidColors,
     }));
     getProviderStatus().then(setProviderStatus).catch(() => undefined);
+    return () => { disposed = true; };
   }, [activeUserId]);
 
   useEffect(() => {
@@ -176,6 +201,7 @@ export default function App() {
     ? Boolean(localEndpoints.text.trim() && localEndpoints.vton.trim())
     : Boolean(providerStatus[wizardData.backend] || apiKeys[wizardData.backend]?.trim());
   const canUseMetaSam = Boolean(providerStatus.meta || apiKeys.meta?.trim());
+  const usableWardrobe = wardrobeLibrary.filter((item) => item.extractor !== 'meta-sam' || item.cutoutQuality === 'usable');
 
   const profileInitials = (userProfile.displayName || 'NC')
     .split(/\s+/)
@@ -240,7 +266,7 @@ export default function App() {
       let failure = '';
       try {
         const item = wardrobeRef.current.find((candidate) => candidate.id === itemId);
-        if (!item || item.extractor !== 'meta-sam' || item.enhancedImage) return;
+        if (!item || item.extractor !== 'meta-sam' || item.cutoutQuality !== 'usable' || item.enhancedImage) return;
 
         const result = await enhanceWardrobeItem(item, metaKey);
         const currentItems = wardrobeRef.current;
@@ -754,7 +780,8 @@ export default function App() {
 
         {appStage === AppStage.WARDROBE && (
           <WardrobePage
-            wardrobeLibrary={wardrobeLibrary}
+            wardrobeLibrary={usableWardrobe}
+            incompleteCutouts={wardrobeLibrary.filter((item) => item.cutoutQuality === 'incomplete')}
             provider={wizardData.backend}
             model={wizardData.model}
             onAddWardrobeItem={handleAddWardrobeItem}
@@ -774,7 +801,7 @@ export default function App() {
           <ProfilePage
             profile={userProfile}
             sessionCount={sessionHistory.length}
-            wardrobeCount={wardrobeLibrary.length}
+            wardrobeCount={usableWardrobe.length}
             onSave={handleSaveProfile}
             onStart={handleStartFromProfile}
             authEmail={authUser?.email ?? null}
@@ -795,7 +822,7 @@ export default function App() {
             onChange={(patch) => setWizardData((prev) => ({ ...prev, ...patch }))}
             onAddUserPhoto={handleAddUserPhoto}
             onRemoveUserPhoto={handleRemoveUserPhoto}
-            wardrobeLibrary={wardrobeLibrary}
+            wardrobeLibrary={usableWardrobe}
             onNavigateWardrobe={() => handleNavigate(AppStage.WARDROBE)}
             onGenerate={handleGenerate}
           />

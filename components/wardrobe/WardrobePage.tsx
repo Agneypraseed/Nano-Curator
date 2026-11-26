@@ -11,6 +11,7 @@ import { WardrobeSearchDialog } from './WardrobeSearchDialog';
 
 interface WardrobePageProps {
   wardrobeLibrary: WardrobeItem[];
+  incompleteCutouts: WardrobeItem[];
   provider: AIProvider;
   model: string;
   isProviderConfigured: boolean;
@@ -118,7 +119,7 @@ function WardrobePiece({ item, selected, enhancement, onSelect, onRemove, onSear
 }
 
 export function WardrobePage({
-  wardrobeLibrary, provider, model, isProviderConfigured, canUseMetaSam, canUseLens, onAddWardrobeItem, onEnhanceWardrobeItem, enhancements,
+  wardrobeLibrary, incompleteCutouts, provider, model, isProviderConfigured, canUseMetaSam, canUseLens, onAddWardrobeItem, onEnhanceWardrobeItem, enhancements,
   onRemoveWardrobeItem, onPlanSuggestion, onOpenModelSettings, onSearch,
 }: WardrobePageProps) {
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -220,7 +221,7 @@ export function WardrobePage({
               {lastImportCount === 1 ? '1 piece added.' : lastImportCount + ' pieces added.'}
             </p>
           )}
-          {skippedCount > 0 && <p className="mt-2 text-xs text-stone-600">SAM could not isolate {skippedCount} of the detected pieces.</p>}
+          {skippedCount > 0 && <p className="mt-2 text-xs text-stone-600">SAM skipped {skippedCount} {skippedCount === 1 ? 'piece' : 'pieces'} because the cutouts were too small or incomplete.</p>}
           {error && <div className="mt-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-800"><ErrorMessage message={error} /></div>}
         </section>
 
@@ -275,6 +276,26 @@ export function WardrobePage({
             <Button disabled={!selectedItems.length} onClick={() => onPlanSuggestion(selectedItems.map((item) => item.image))} className="mt-5 w-full">
               <Sparkles className="size-4" aria-hidden="true" /> Plan with selected pieces
             </Button>
+          )}
+          {incompleteCutouts.length > 0 && (
+            <details className="group mt-5 border-t border-stone-200">
+              <summary className="flex min-h-12 cursor-pointer list-none items-center justify-between gap-2 text-sm font-semibold text-stone-700">
+                Incomplete cutouts ({incompleteCutouts.length})
+                <ChevronDown className="size-4 shrink-0 transition-transform group-open:rotate-180" aria-hidden="true" />
+              </summary>
+              <p className="mb-3 text-xs leading-relaxed text-stone-600">Import a clearer photo with the whole piece in frame to use it in your wardrobe.</p>
+              <ul className="grid gap-2">
+                {incompleteCutouts.map((item) => (
+                  <li key={item.id} className="flex items-center gap-3 rounded-md bg-stone-100 px-2 py-1">
+                    <img src={imageSource(item.image)} alt="" loading="lazy" className="size-10 shrink-0 object-scale-down" />
+                    <span className="min-w-0 flex-1 break-words text-sm">{item.label}</span>
+                    <button type="button" aria-label={'Delete ' + item.label} onClick={() => setStorageError(!onRemoveWardrobeItem(item.id))} className="grid size-10 shrink-0 place-items-center rounded-md text-stone-700 hover:bg-red-50 hover:text-red-800">
+                      <Trash2 className="size-4" aria-hidden="true" />
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </details>
           )}
         </section>
       </div>

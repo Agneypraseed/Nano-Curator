@@ -1,6 +1,7 @@
 import sharp from 'sharp';
 import { buildObjectPrompt, decodeMaskToRaster, formats, recordsOfKind } from '@meta-sam/parser';
 import { imageDataUrl, imageParts } from './images.mjs';
+import { hasUsableCutoutSize } from '../utils/wardrobeCutout.mjs';
 
 export const SAM_MODEL = 'sam-3.1';
 const categories = ['tops', 'bottoms', 'outerwear', 'dresses', 'shoes', 'accessories', 'other'];
@@ -91,29 +92,50 @@ function decodeMasks(output) {
   return masks;
 }
 
-async function applyMask(photo, record) {
+async function applyMask(photo, record, category) {
   const { left, top, right, bottom } = record.bounds;
   const { width, height } = record.mask;
   if (width < 1 || height < 1 || right - left !== width || bottom - top !== height ||
       left < 0 || top < 0 || right > photo.info.width || bottom > photo.info.height) return null;
 
   const mask = decodeMaskToRaster(record.mask);
+  let minX = width;
+  let minY = height;
+  let maxX = -1;
+  let maxY = -1;
+  let visiblePixels = 0;
+  for (let index = 0; index < mask.length; index += 1) {
+    if (!mask[index]) continue;
+    const x = index % width;
+    const y = Math.floor(index / width);
+    minX = Math.min(minX, x);
+    minY = Math.min(minY, y);
+    maxX = Math.max(maxX, x);
+    maxY = Math.max(maxY, y);
+    visiblePixels += 1;
+  }
+  const cropWidth = maxX - minX + 1;
+  const cropHeight = maxY - minY + 1;
+  if (!hasUsableCutoutSize(category, cropWidth, cropHeight) || visiblePixels < cropWidth * cropHeight * 0.04) return null;
+
   const pixels = await sharp(photo.data)
-    .extract({ left, top, width, height })
+    .extract({ left: left + minX, top: top + minY, width: cropWidth, height: cropHeight })
     .ensureAlpha()
     .raw()
     .toBuffer();
-  let visible = false;
-  for (let index = 0; index < mask.length; index += 1) {
-    pixels[index * 4 + 3] = mask[index] * 255;
-    if (mask[index]) visible = true;
+  for (let y = 0; y < cropHeight; y += 1) {
+    for (let x = 0; x < cropWidth; x += 1) {
+      pixels[(y * cropWidth + x) * 4 + 3] = mask[(y + minY) * width + x + minX] * 255;
+    }
   }
-  if (!visible) return null;
-  const cutout = await sharp(pixels, { raw: { width, height, channels: 4 } })
+  const cutout = await sharp(pixels, { raw: { width: cropWidth, height: cropHeight, channels: 4 } })
     .resize({ width: 720, height: 720, fit: 'inside', withoutEnlargement: true })
     .webp({ quality: 85 })
     .toBuffer();
-  return imageDataUrl(cutout.toString('base64'));
+  return {
+    image: imageDataUrl(cutout.toString('base64')),
+    bounds: { left: left + minX, top: top + minY, right: left + maxX + 1, bottom: top + maxY + 1 },
+  };
 }
 
 export function createSamExtractor({ request, model, responseText }) {
@@ -136,6 +158,7 @@ export function createSamExtractor({ request, model, responseText }) {
         inputImage,
         { type: 'input_text', text: [
           'Inventory the clearly visible clothing in this photo, with at most six items. Exclude people, skin, hair, scenery, jewelry and tiny or heavily occluded items. Count a matching pair of shoes once. Use the most distinct visible piece first.',
+          'Only include garments with enough of their shape visible to identify them. Skip a garment if only its waistband, hem, or another small fragment is in frame. Include glasses and other small accessories only when their overall shape is clear.',
           target ? 'Only include distinct pieces matching this requested garment: ' + JSON.stringify(target) : 'Include different garments and prominent accessories you can clearly see.',
           'For each item provide a short label, visible color, pattern and silhouette in description, and a concise product searchQuery. Mention material or brand only if directly visible with confidence.',
           'Give the tight enclosing rectangle of each whole visible piece, each coordinate expressed on the 0 to 1000 grid relative to the entire image: left, top, right, bottom. Include sleeves and hems. Keep coordinates in image bounds.',
@@ -168,19 +191,21 @@ export function createSamExtractor({ request, model, responseText }) {
     if (!target && pieces.some(({ item }) => item.category === 'dresses')) {
       conceptMasks.push(...await segment('dress').catch(() => []));
     }
-    const masks = new Map();
+    const cutouts = new Map();
     const promptedByConcept = pieces.flatMap((piece, index) =>
       target || piece.item.category === 'dresses' ? [{ ...piece, index }] : []);
-    for (const { index, box } of promptedByConcept) {
+    for (const { index, item, box } of promptedByConcept) {
       const best = conceptMasks
         .map((mask, candidateIndex) => ({ candidateIndex, score: overlap(box, mask.bounds) }))
         .sort((first, second) => second.score - first.score)[0];
       if (best && (best.score >= 0.12 || (promptedByConcept.length === 1 && conceptMasks.length === 1))) {
-        masks.set(index, conceptMasks.splice(best.candidateIndex, 1)[0]);
+        const [mask] = conceptMasks.splice(best.candidateIndex, 1);
+        const cutout = await applyMask(photo, mask, item.category);
+        if (cutout) cutouts.set(index, cutout);
       }
     }
 
-    const remaining = pieces.flatMap(({ box }, index) => masks.has(index) ? [] : [{ id: index, prompts: [{ box }] }]);
+    const remaining = pieces.flatMap(({ box }, index) => cutouts.has(index) ? [] : [{ id: index, prompts: [{ box }] }]);
     if (remaining.length) {
       const prompt = buildObjectPrompt({
         size: { width: photo.info.width, height: photo.info.height },
@@ -189,12 +214,16 @@ export function createSamExtractor({ request, model, responseText }) {
       try {
         for (const mask of await segment(prompt)) {
           const index = Number(mask.objectId);
-          if (!masks.has(index)) masks.set(index, mask);
+          if (!pieces[index] || cutouts.has(index)) continue;
+          const cutout = await applyMask(photo, mask, pieces[index].item.category);
+          if (cutout) cutouts.set(index, cutout);
         }
       } catch (error) {
-        if (masks.size === 0) throw error;
+        if (cutouts.size === 0) throw error;
       }
     }
+    if (cutouts.size === 0) throw new Error('SAM could not isolate a complete piece. Try a clearer photo with the whole garment in frame.');
+
     const sourcePreview = await sharp(photo.data)
       .resize({ width: 650, height: 650, fit: 'inside', withoutEnlargement: true })
       .jpeg({ quality: 76 })
@@ -202,22 +231,20 @@ export function createSamExtractor({ request, model, responseText }) {
     const output = [];
 
     for (const [index, { item, box }] of pieces.entries()) {
-      const record = masks.get(index);
-      const image = record ? await applyMask(photo, record) : null;
-      if (!image) continue;
+      const cutout = cutouts.get(index);
+      if (!cutout) continue;
       output.push({
         label: item.label.trim().slice(0, 90) || 'Wardrobe piece',
         category: categories.includes(item.category) ? item.category : 'other',
         description: item.description.trim().slice(0, 400),
         searchQuery: item.searchQuery.trim().slice(0, 180),
-        image,
-        sourceBounds: sourceBounds(box, record.bounds, photo.info),
+        image: cutout.image,
+        sourceBounds: sourceBounds(box, cutout.bounds, photo.info),
         cutoutReady: true,
+        cutoutQuality: 'usable',
         extractor: 'meta-sam',
       });
     }
-    if (output.length === 0) throw new Error('SAM could not isolate the garment. Try a clearer photo or name a specific piece.');
-
     return { items: output, sourceImage: sourcePreview.toString('base64'), skippedCount: pieces.length - output.length };
   };
 }

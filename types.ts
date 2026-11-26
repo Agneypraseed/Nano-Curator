@@ -37,6 +37,7 @@ export interface WardrobeItem {
   sourceImage?: string;
   sourceBounds?: WardrobeSourceBounds;
   cutoutReady?: boolean;
+  cutoutQuality?: 'usable' | 'incomplete';
   extractor?: 'meta-sam';
   description?: string;
   searchQuery?: string;
