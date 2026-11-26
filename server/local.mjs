@@ -1,3 +1,4 @@
+import { imageDataUrl } from './images.mjs';
 // Utilities duplicated from gemini.mjs to keep the file standalone for this migration
 
 const WEATHER_CODE_LABELS = {
@@ -478,8 +479,8 @@ Return ONLY JSON with this shape (strictly valid JSON!):
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 data: [
-                    "data:image/jpeg;base64," + baseIdentityImage,
-                    garmentImage ? "data:image/jpeg;base64," + garmentImage : null,
+                    imageDataUrl(baseIdentityImage),
+                    garmentImage ? imageDataUrl(garmentImage) : null,
                     prompt, // text prompt
                     true,   // auto mask
                     true,   // auto crop

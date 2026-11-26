@@ -50,10 +50,10 @@ export const createShoppingService = (config = {}) => {
     const matches = await searchGoogleLens(imageUrl);
 
     // 3. Extract the top 6 matches and map them to our ShoppingItem format
-    const results = matches.slice(0, 6).map((match) => ({
+    const results = matches.filter((match) => /^https?:\/\//i.test(match.link || '')).slice(0, 6).map((match) => ({
       name: match.title || 'Visually matched item',
       brand: match.source || 'Online Retailer',
-      url: match.link || imageUrl,
+      url: match.link,
       priceNote: match.price ? `${match.price.extracted_value} ${match.price.currency}` : '',
       thumbnail: match.thumbnail || '',
       reason: 'Matched via Google Lens visual search.',

@@ -10,14 +10,18 @@
   },
   "dependencies": {
     "@google/genai": "^1.33.0",
+    "@meta-sam/parser": "^0.1.0",
     "@supabase/supabase-js": "^2.110.7",
     "lucide-react": "^0.561.0",
     "react": "^19.2.3",
-    "react-dom": "^19.2.3"
+    "react-dom": "^19.2.3",
+    "sharp": "^0.35.5"
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.2.4",
     "@types/node": "^22.14.0",
+    "@types/react": "^19.3.3",
+    "@types/react-dom": "^19.3.0",
     "@vitejs/plugin-react": "^5.0.0",
     "tailwindcss": "^4.2.4",
     "typescript": "~5.8.2",

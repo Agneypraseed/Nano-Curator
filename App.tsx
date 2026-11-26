@@ -1,17 +1,18 @@
-import React, { lazy, Suspense, useEffect, useMemo, useState } from 'react';
+import React, { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import type { User } from '@supabase/supabase-js';
 import { Sparkles } from 'lucide-react';
+import { StudioHeader } from './components/StudioHeader';
 import { ProfilePage } from './components/profile/ProfilePage';
-import Button from './components/Button';
 import { HomePage } from './components/home/HomePage';
 import { ResultsPage } from './components/results/ResultsPage';
 import { ProfileWizard } from './components/wizard/ProfileWizard';
 import { WardrobePage } from './components/wardrobe/WardrobePage';
 import { ModelSettingsPage } from './components/models/ModelSettingsPage';
-import { extractWardrobeItems, generateStyleSession, getProviderStatus, regenerateStyleImage, sanitizeErrorMessage, transformLook } from './services/api';
+import { extractWardrobeItems, findWardrobeMatches, generateStyleSession, getProviderStatus, regenerateStyleImage, sanitizeErrorMessage, transformLook, visualSearch, type ProviderStatus } from './services/api';
 import { loadSessionHistory, removeSessionHistoryItem, upsertSessionHistory, loadWardrobeLibrary, saveWardrobeLibrary } from './utils/sessionHistory';
 import { loadUserProfile, saveUserProfile } from './utils/userProfile';
-import { AppStage, ReferenceTab, SessionRecord, StyleAnalysis, StyleOption, UserProfile, WardrobeItem, WizardState } from './types';
+import { AIProvider, AppStage, ReferenceTab, SessionRecord, StyleAnalysis, StyleOption, UserProfile, WardrobeExtractor, WardrobeItem, WardrobeSearchMethod, WizardState } from './types';
+import { providerLabels } from './utils/providers';
 
 const AuthPage = lazy(() => import('./components/auth/AuthPage').then((module) => ({ default: module.AuthPage })));
 
@@ -64,6 +65,12 @@ export default function App() {
   const [styleImages, setStyleImages] = useState<Record<string, string>>({});
   const [haircutImage, setHaircutImage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState('');
+  const mainRef = useRef<HTMLElement>(null);
+  const previousStage = useRef(appStage);
+  const generationInProgress = useRef(false);
+  const generationDetached = useRef(false);
+  const [isGenerating, setIsGenerating] = useState(false);
   const [activeRefTab, setActiveRefTab] = useState<ReferenceTab>('image');
   const [loadingMessage, setLoadingMessage] = useState('Building your style brief...');
   const [isGeneratingMore, setIsGeneratingMore] = useState(false);
@@ -76,14 +83,25 @@ export default function App() {
   const [compareLookIds, setCompareLookIds] = useState<string[]>([]);
 
   const [wardrobeLibrary, setWardrobeLibrary] = useState<WardrobeItem[]>([]);
-  const [apiKeys, setApiKeys] = useState<Partial<Record<'gemini' | 'openai' | 'openrouter', string>>>({});
-  const [providerStatus, setProviderStatus] = useState({ gemini: false, openai: false, openrouter: false });
+  const wardrobeRef = useRef<WardrobeItem[]>([]);
+  const [apiKeys, setApiKeys] = useState<Partial<Record<Exclude<AIProvider, 'local'>, string>>>({});
+  const [providerStatus, setProviderStatus] = useState<ProviderStatus>({
+    gemini: false, openai: false, openrouter: false, meta: false, visualSearch: false,
+  });
   const [localEndpoints, setLocalEndpoints] = useState({
     text: 'http://localhost:11434/v1',
     vton: 'http://127.0.0.1:7860',
   });
 
   const activeUserId = authUser?.id || userProfile.id;
+  const activeUserRef = useRef(activeUserId);
+
+  useEffect(() => {
+    if (previousStage.current === appStage) return;
+    previousStage.current = appStage;
+    window.scrollTo({ top: 0 });
+    mainRef.current?.focus({ preventScroll: true });
+  }, [appStage]);
 
   useEffect(() => {
     if (!error) return;
@@ -92,8 +110,10 @@ export default function App() {
   }, [error]);
 
   useEffect(() => {
+    activeUserRef.current = activeUserId;
     setSessionHistory(loadSessionHistory(activeUserId));
-    setWardrobeLibrary(loadWardrobeLibrary());
+    wardrobeRef.current = loadWardrobeLibrary();
+    setWardrobeLibrary(wardrobeRef.current);
     setWizardData((current) => ({
       ...current,
       goals: current.goals || userProfile.styleGoals,
@@ -152,6 +172,7 @@ export default function App() {
   const isActiveProviderConfigured = wizardData.backend === 'local'
     ? Boolean(localEndpoints.text.trim() && localEndpoints.vton.trim())
     : Boolean(providerStatus[wizardData.backend] || apiKeys[wizardData.backend]?.trim());
+  const canUseMetaSam = Boolean(providerStatus.meta || apiKeys.meta?.trim());
 
   const profileInitials = (userProfile.displayName || 'NC')
     .split(/\s+/)
@@ -165,9 +186,9 @@ export default function App() {
     nextStyleImages: Record<string, string>,
     nextHaircutImage: string | null,
     nextFavorites: string[],
-    sessionIdOverride?: string,
+    sessionId = currentSessionId ?? crypto.randomUUID(),
+    updateCurrent = true,
   ) => {
-    const sessionId = sessionIdOverride ?? currentSessionId ?? crypto.randomUUID();
     const record: SessionRecord = {
       id: sessionId,
       userId: activeUserId,
@@ -180,8 +201,8 @@ export default function App() {
     };
 
     upsertSessionHistory(record);
-    setSessionHistory(loadSessionHistory(activeUserId));
-    setCurrentSessionId(sessionId);
+    setSessionHistory(loadSessionHistory(activeUserRef.current));
+    if (updateCurrent) setCurrentSessionId(sessionId);
   };
 
   const handleAddUserPhoto = (base64: string) => {
@@ -197,57 +218,79 @@ export default function App() {
     }));
   };
 
-  const handleAddWardrobeItem = async (base64: string): Promise<WardrobeItem[]> => {
-    const { items } = await extractWardrobeItems(base64, wizardData, credentials);
-    const now = new Date().toISOString();
-    const newItems: WardrobeItem[] = items.map((item) => ({
-      ...item,
-      id: crypto.randomUUID(),
-      sourceImage: base64,
-      createdAt: now,
-      provider: wizardData.backend,
-    }));
-    setWardrobeLibrary((prev) => {
-      const existing = new Set(prev.map((item) => item.image));
-      const next = [...prev, ...newItems.filter((item) => !existing.has(item.image))];
-      saveWardrobeLibrary(next);
-      return next;
+  const updateWardrobe = (items: WardrobeItem[]) => {
+    wardrobeRef.current = items;
+    setWardrobeLibrary(items);
+    return saveWardrobeLibrary(items);
+  };
+
+  const handleAddWardrobeItem = async (base64: string, extractor: WardrobeExtractor, targetGarment: string) => {
+    const { items, sourceImage, skippedCount } = await extractWardrobeItems(base64, wizardData, credentials, {
+      extractor,
+      targetGarment,
+      metaApiKey: extractor === 'meta-sam' ? apiKeys.meta?.trim() : undefined,
     });
-    return newItems;
+    const currentItems = wardrobeRef.current;
+    const newItems: WardrobeItem[] = [];
+    const now = new Date().toISOString();
+    const key = (item: Pick<WardrobeItem, 'label' | 'category' | 'image'>) => JSON.stringify([item.label, item.category, item.image]);
+    const existing = new Set(currentItems.map(key));
+
+    for (const item of items) {
+      const itemKey = key(item);
+      if (existing.has(itemKey)) continue;
+      existing.add(itemKey);
+      newItems.push({
+        ...item,
+        id: crypto.randomUUID(),
+        sourceImage: sourceImage || base64,
+        createdAt: now,
+        provider: item.extractor === 'meta-sam' ? 'meta' : wizardData.backend,
+      });
+    }
+
+    return { items: newItems, skippedCount, saved: newItems.length === 0 || updateWardrobe([...currentItems, ...newItems]) };
+  };
+
+  const handleSearchWardrobe = async (method: WardrobeSearchMethod, query: string, image?: string) => {
+    const { shoppingItems } = await findWardrobeMatches(query, image, method, method === 'meta' ? apiKeys.meta?.trim() : undefined);
+    return shoppingItems;
   };
 
   const handleRemoveWardrobeItem = (itemId: string) => {
-    const removed = wardrobeLibrary.find((item) => item.id === itemId);
-    setWardrobeLibrary((prev) => {
-      const next = prev.filter((item) => item.id !== itemId);
-      saveWardrobeLibrary(next);
-      return next;
-    });
+    const currentItems = wardrobeRef.current;
+    const removed = currentItems.find((item) => item.id === itemId);
+    const saved = updateWardrobe(currentItems.filter((item) => item.id !== itemId));
     setWizardData((prev) => ({
       ...prev,
       wardrobePhotos: prev.wardrobePhotos.filter((photo) => photo !== removed?.image),
     }));
+    return saved;
   };
 
   const runGeneration = async (isMore = false) => {
+    if (generationInProgress.current) return;
     if (wizardData.backend === 'local' && (!localEndpoints.text.trim() || !localEndpoints.vton.trim())) {
       setError('Add both local endpoints before generating.');
       return;
     }
 
     if (wizardData.backend !== 'local' && !providerStatus[wizardData.backend] && !apiKeys[wizardData.backend]?.trim()) {
-      const providerName = wizardData.backend === 'openai' ? 'OpenAI' : wizardData.backend === 'openrouter' ? 'OpenRouter' : 'Gemini';
-      setError('Please add your ' + providerName + ' API key.');
+      setError('Please add your ' + providerLabels[wizardData.backend] + ' API key.');
       return;
     }
 
-    if (wizardData.userPhotos.length < 1 && !analysis) {
+    if (!isMore && wizardData.userPhotos.length < 1) {
       setError('Please upload at least 1 photo.');
       return;
     }
 
+    generationInProgress.current = true;
+    generationDetached.current = false;
+    setIsGenerating(true);
     setAppStage(AppStage.LOADING);
     setError(null);
+    setNotice('');
     setLoadingMessage(isMore ? 'Designing more looks...' : 'Analyzing your profile and generating looks...');
 
     if (!isMore) {
@@ -280,23 +323,30 @@ export default function App() {
       const nextHaircutImage = isMore ? haircutImage : payload.haircutImage;
       const nextFavorites = isMore ? favoriteLookIds : [];
 
-      setAnalysis(nextAnalysis);
-      setStyleImages(nextStyleImages);
-      setHaircutImage(nextHaircutImage);
-      setFavoriteLookIds(nextFavorites);
-      setAppStage(AppStage.RESULTS);
+      const showResults = !generationDetached.current;
+      if (showResults) {
+        setAnalysis(nextAnalysis);
+        setStyleImages(nextStyleImages);
+        setHaircutImage(nextHaircutImage);
+        setFavoriteLookIds(nextFavorites);
+        setAppStage(AppStage.RESULTS);
+      }
       persistSession(
         nextAnalysis,
         nextStyleImages,
         nextHaircutImage,
         nextFavorites,
-        isMore ? currentSessionId ?? undefined : undefined,
+        isMore && currentSessionId ? currentSessionId : crypto.randomUUID(),
+        showResults,
       );
     } catch (err: unknown) {
       console.error(err);
       const message = err instanceof Error ? err.message : 'Something went wrong. Please try again.';
-      setError(message);
-      setAppStage(AppStage.WIZARD);
+      if (!generationDetached.current || previousStage.current === AppStage.WIZARD) setError(message);
+      if (!generationDetached.current) setAppStage(isMore ? AppStage.RESULTS : AppStage.WIZARD);
+    } finally {
+      generationInProgress.current = false;
+      setIsGenerating(false);
     }
   };
 
@@ -328,6 +378,7 @@ export default function App() {
     }
 
     setRefreshingLookId(lookId);
+    setError(null);
     try {
       const response = await regenerateStyleImage(wizardData.userPhotos[0], wizardData.garmentImage, look.visualPrompt, wizardData, credentials);
       const nextStyleImages = { ...styleImages, [lookId]: response.image };
@@ -385,8 +436,6 @@ export default function App() {
     setError(null);
 
     try {
-      // visualSearch needs to be imported! I will make sure visualSearch is imported in the next step.
-      const { visualSearch } = await import('./services/api');
       const result = await visualSearch(targetImage);
       
       const nextStyles = analysis.styles.map((style) => 
@@ -436,9 +485,11 @@ export default function App() {
 
   const handleRestoreSession = (session: SessionRecord) => {
     setWizardData({
+      ...DEFAULT_WIZARD_DATA,
       ...session.wizardData,
       model: session.wizardData.model || (session.wizardData.backend === 'local' ? 'local' : 'gemini-3.5-flash'),
     });
+    setActiveRefTab(session.wizardData.referenceUrl && !session.wizardData.referenceImage ? 'url' : 'image');
     setAnalysis(session.analysis);
     setStyleImages(session.styleImages);
     setHaircutImage(session.haircutImage);
@@ -446,6 +497,7 @@ export default function App() {
     setCompareLookIds([]);
     setCurrentSessionId(session.id);
     setError(null);
+    setNotice('');
     setAppStage(AppStage.RESULTS);
   };
 
@@ -485,31 +537,36 @@ export default function App() {
       .join('\n');
   };
 
-  const handleShare = async () => {
-    if (!analysis) {
-      return;
+  const handleCopyBrief = async () => {
+    if (!analysis) return;
+    setError(null);
+    setNotice('');
+    try {
+      await navigator.clipboard.writeText(buildBriefText(analysis));
+      setNotice('Style brief copied.');
+    } catch {
+      setError('The brief could not be copied. You can download it instead.');
     }
-
-    const shareText = buildBriefText(analysis);
-    if (navigator.share) {
-      await navigator.share({
-        title: 'Nano Curator style summary',
-        text: shareText,
-      });
-      return;
-    }
-
-    await navigator.clipboard.writeText(shareText);
-    setError('Full brief copied to clipboard.');
   };
 
-  const handleCopyBrief = async () => {
-    if (!analysis) {
+  const handleShare = async () => {
+    if (!analysis) return;
+    if (!navigator.share) {
+      await handleCopyBrief();
       return;
     }
-
-    await navigator.clipboard.writeText(buildBriefText(analysis));
-    setError('Full brief copied to clipboard.');
+    setError(null);
+    setNotice('');
+    try {
+      await navigator.share({
+        title: 'Nano Curator style summary',
+        text: buildBriefText(analysis),
+      });
+    } catch (err) {
+      if (!(err instanceof DOMException && err.name === 'AbortError')) {
+        setError('The brief could not be shared. You can copy or download it instead.');
+      }
+    }
   };
 
   const handleDownloadBrief = () => {
@@ -523,17 +580,30 @@ export default function App() {
     anchor.href = url;
     anchor.download = 'nano-curator-brief.txt';
     anchor.click();
-    URL.revokeObjectURL(url);
+    window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+    setError(null);
+    setNotice('Style brief downloaded.');
   };
 
   const handleReset = () => {
-    setAppStage(AppStage.HOME);
-    setWizardData(DEFAULT_WIZARD_DATA);
+    setAppStage(AppStage.WIZARD);
+    setWizardData((current) => ({
+      ...DEFAULT_WIZARD_DATA,
+      backend: current.backend,
+      model: current.model,
+      goals: userProfile.styleGoals,
+      lifestyle: userProfile.bio,
+      location: userProfile.location,
+      preferredColors: userProfile.preferredColors,
+      avoidColors: userProfile.avoidColors,
+    }));
     setAnalysis(null);
+    setActiveRefTab('image');
     setStyleImages({});
     setHaircutImage(null);
     setError(null);
     setCurrentSessionId(null);
+    setNotice('');
     setFavoriteLookIds([]);
     setCompareLookIds([]);
   };
@@ -551,17 +621,7 @@ export default function App() {
     }));
   };
 
-  const handleStartFromProfile = () => {
-    setWizardData((current) => ({
-      ...current,
-      goals: userProfile.styleGoals || current.goals,
-      lifestyle: userProfile.bio || current.lifestyle,
-      location: userProfile.location || current.location,
-      preferredColors: userProfile.preferredColors || current.preferredColors,
-      avoidColors: userProfile.avoidColors || current.avoidColors,
-    }));
-    setAppStage(AppStage.WIZARD);
-  };
+  const handleStartFromProfile = () => setAppStage(AppStage.WIZARD);
 
   const handleSignOut = async () => {
     try {
@@ -573,25 +633,13 @@ export default function App() {
       setError(err instanceof Error ? err.message : 'Unable to sign out.');
     }
   };
-  const headerAction = useMemo(() => {
-    if (appStage === AppStage.HOME || appStage === AppStage.WARDROBE || appStage === AppStage.PROFILE) {
-      return (
-        <Button onClick={handleStartFromProfile} className="hidden sm:inline-flex">
-          Start
-        </Button>
-      );
-    }
-
-    if (appStage === AppStage.WIZARD || appStage === AppStage.RESULTS) {
-      return (
-        <Button variant="outline" onClick={handleReset} className="hidden sm:inline-flex">
-          Home
-        </Button>
-      );
-    }
-
-    return null;
-  }, [appStage]);
+  const handleNavigate = (stage: AppStage) => {
+    if (appStage === stage) return;
+    if (appStage === AppStage.LOADING) generationDetached.current = true;
+    setError(null);
+    setNotice('');
+    setAppStage(stage);
+  };
 
   const handlePlanSuggestionFromWardrobe = (selectedPhotos: string[]) => {
     setWizardData((prev) => ({
@@ -602,103 +650,34 @@ export default function App() {
   };
 
   const renderLoading = (message: string) => (
-    <div className="flex min-h-[60vh] flex-col items-center justify-center space-y-8 px-4 text-center">
-      <div className="relative h-32 w-32">
-        <div className="absolute inset-0 rounded-full border-8 border-teal-100" />
-        <div className="absolute inset-0 animate-spin rounded-full border-8 border-teal-600 border-t-transparent" />
-        <Sparkles className="absolute inset-0 m-auto h-10 w-10 animate-pulse text-teal-600" />
-      </div>
-      <div className="space-y-2">
-        <h2 className="text-2xl font-bold text-stone-800">{message}</h2>
-        <p className="text-stone-500">
-          The server is building the recommendations and keeping the API key out of the client bundle.
-        </p>
-      </div>
+    <div className="mx-auto flex min-h-[60vh] max-w-lg flex-col items-center justify-center gap-4 px-4 text-center" role="status">
+      <span className="grid size-14 place-items-center rounded-full bg-plum-100 text-plum-700">
+        <Sparkles className="size-6 animate-pulse" aria-hidden="true" />
+      </span>
+      <h1 className="section-title text-3xl">{message}</h1>
+      {appStage === AppStage.LOADING && <p className="text-stone-600">This may take a few minutes while your looks are prepared.</p>}
     </div>
   );
 
   return (
-    <div className="min-h-screen bg-stone-50 text-stone-900 font-sans selection:bg-teal-100 selection:text-teal-900">
-      <header className="sticky top-0 z-50 border-b border-stone-200 bg-white/90 backdrop-blur-md">
-        <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center gap-4 lg:gap-7">
-            <button type="button" className="flex items-center gap-3" onClick={() => setAppStage(AppStage.HOME)}>
-              <div className="rounded-xl bg-stone-950 p-2 text-white">
-                <Sparkles className="h-5 w-5" />
-              </div>
-              <div className="text-left">
-                <div className="text-sm font-medium uppercase tracking-[0.25em] text-stone-400">Nano Curator</div>
-                <div className="text-sm text-stone-600">AI style direction</div>
-              </div>
-            </button>
-            <nav className="flex items-center gap-1 sm:gap-2" aria-label="Primary navigation">
-              <button
-                type="button"
-                onClick={() => setAppStage(AppStage.HOME)}
-                className={`hidden rounded-full px-3 py-2 text-sm font-semibold transition sm:inline-flex ${appStage === AppStage.HOME ? 'bg-teal-50 text-teal-800 ring-1 ring-teal-100' : 'text-stone-700 hover:bg-stone-100 hover:text-stone-950'}`}
-              >
-                Home
-              </button>
-              <button
-                type="button"
-                onClick={() => setAppStage(AppStage.WARDROBE)}
-                className={`inline-flex rounded-full px-3 py-2 text-sm font-semibold transition ${appStage === AppStage.WARDROBE ? 'bg-teal-50 text-teal-800 ring-1 ring-teal-100' : 'text-stone-700 hover:bg-stone-100 hover:text-stone-950'}`}
-              >
-                Wardrobe
-              </button>
-              <button
-                type="button"
-                onClick={() => setAppStage(AppStage.MODELS)}
-                className={`hidden rounded-full px-3 py-2 text-sm font-semibold transition sm:inline-flex ${appStage === AppStage.MODELS ? 'bg-teal-50 text-teal-800 ring-1 ring-teal-100' : 'text-stone-700 hover:bg-stone-100 hover:text-stone-950'}`}
-              >
-                Model
-              </button>
-            </nav>
-          </div>
-          <div className="flex items-center gap-2">
-            {!authUser ? (
-              <button
-                type="button"
-                disabled={authLoading}
-                onClick={() => setAppStage(AppStage.AUTH)}
-                className="hidden min-h-10 items-center rounded-full border border-stone-300 bg-white px-4 py-2 text-sm font-semibold text-stone-900 shadow-sm transition hover:border-teal-600 hover:bg-teal-50 hover:text-teal-900 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:ring-offset-2 disabled:opacity-60 sm:inline-flex"
-              >
-                {authLoading ? 'Checking...' : 'Sign in'}
-              </button>
-            ) : (
-              <>
-                <button
-                  type="button"
-                  onClick={() => setAppStage(AppStage.PROFILE)}
-                  aria-label="Open profile"
-                  className="grid h-10 w-10 place-items-center rounded-full border border-stone-200 bg-white text-xs font-semibold text-stone-700 transition hover:border-teal-300 hover:bg-teal-50 hover:text-teal-800"
-                >
-                  {profileInitials}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => void handleSignOut()}
-                  className="hidden rounded-full px-3 py-2 text-xs font-semibold text-stone-600 transition hover:bg-stone-100 hover:text-stone-950 lg:inline-flex"
-                >
-                  Sign out
-                </button>
-              </>
-            )}
-            {headerAction}
-          </div>
-        </div>
-      </header>
-
-      <main className="py-8">
+    <div className="min-h-screen bg-stone-50 font-sans text-stone-950 selection:bg-plum-100 selection:text-plum-900">
+      <StudioHeader
+        stage={appStage}
+        profileInitials={authUser ? profileInitials : null}
+        authLoading={authLoading}
+        onNavigate={handleNavigate}
+      />
+      <main id="main-content" ref={mainRef} tabIndex={-1} className="focus:outline-none">
         {appStage === AppStage.AUTH && (
           <Suspense fallback={renderLoading('Loading secure sign-in...')}>
-            <AuthPage onContinueGuest={() => setAppStage(AppStage.HOME)} />
+            <AuthPage onContinueGuest={() => handleNavigate(AppStage.HOME)} onOpenProfile={() => handleNavigate(AppStage.PROFILE)} />
           </Suspense>
         )}
         {appStage === AppStage.HOME && (
           <HomePage
             sessions={sessionHistory}
             onStart={handleStartFromProfile}
+            onOpenWardrobe={() => handleNavigate(AppStage.WARDROBE)}
             onRestore={handleRestoreSession}
             onDelete={handleDeleteSession}
           />
@@ -727,7 +706,11 @@ export default function App() {
             onAddWardrobeItem={handleAddWardrobeItem}
             onRemoveWardrobeItem={handleRemoveWardrobeItem}
             onPlanSuggestion={handlePlanSuggestionFromWardrobe}
-            onNavigateHome={() => setAppStage(AppStage.HOME)}
+            isProviderConfigured={isActiveProviderConfigured}
+            canUseMetaSam={canUseMetaSam}
+            canUseLens={Boolean(providerStatus.visualSearch)}
+            onSearch={handleSearchWardrobe}
+            onOpenModelSettings={() => handleNavigate(AppStage.MODELS)}
           />
         )}
 
@@ -739,36 +722,27 @@ export default function App() {
             onSave={handleSaveProfile}
             onStart={handleStartFromProfile}
             authEmail={authUser?.email ?? null}
-            onSignIn={() => setAppStage(AppStage.AUTH)}
+            onSignIn={() => handleNavigate(AppStage.AUTH)}
             onSignOut={() => void handleSignOut()}
+            error={error}
           />
         )}
         {appStage === AppStage.WIZARD && (
-          <>
-            {!isActiveProviderConfigured && (
-              <div className="mx-auto mb-6 flex w-full max-w-7xl flex-col gap-4 rounded-2xl border border-amber-200 bg-amber-50 px-5 py-4 text-amber-950 shadow-sm sm:flex-row sm:items-center sm:justify-between">
-                <div>
-                  <p className="text-sm font-semibold">{wizardData.backend === 'local' ? 'Local AI setup required' : 'API key required'}</p>
-                  <p className="mt-1 text-sm leading-5 text-amber-800">{wizardData.backend === 'local' ? 'Please configure your local text and image endpoints in Model settings to generate your style collection.' : 'Please set an API key in Model settings to generate your style collection.'}</p>
-                </div>
-                <Button variant="outline" onClick={() => setAppStage(AppStage.MODELS)} className="shrink-0 border-amber-300 bg-white">
-                  Open Model settings
-                </Button>
-              </div>
-            )}
-            <ProfileWizard
-              data={wizardData}
-              error={error}
-              activeReferenceTab={activeRefTab}
-              onActiveReferenceTabChange={setActiveRefTab}
-              onChange={(patch) => setWizardData((prev) => ({ ...prev, ...patch }))}
-              onAddUserPhoto={handleAddUserPhoto}
-              onRemoveUserPhoto={handleRemoveUserPhoto}
-              wardrobeLibrary={wardrobeLibrary.map((item) => item.image)}
-              onNavigateWardrobe={() => setAppStage(AppStage.WARDROBE)}
-              onGenerate={handleGenerate}
-            />
-          </>
+          <ProfileWizard
+            isProviderConfigured={isActiveProviderConfigured}
+            onOpenModelSettings={() => handleNavigate(AppStage.MODELS)}
+            data={wizardData}
+            isGenerating={isGenerating}
+            error={error}
+            activeReferenceTab={activeRefTab}
+            onActiveReferenceTabChange={setActiveRefTab}
+            onChange={(patch) => setWizardData((prev) => ({ ...prev, ...patch }))}
+            onAddUserPhoto={handleAddUserPhoto}
+            onRemoveUserPhoto={handleRemoveUserPhoto}
+            wardrobeLibrary={wardrobeLibrary}
+            onNavigateWardrobe={() => handleNavigate(AppStage.WARDROBE)}
+            onGenerate={handleGenerate}
+          />
         )}
 
         {appStage === AppStage.LOADING && renderLoading(loadingMessage)}
@@ -784,6 +758,10 @@ export default function App() {
             editingLookKey={editingLookKey}
             searchingLookId={searchingLookId}
             isGeneratingMore={isGeneratingMore}
+            canUpdateLooks={wizardData.userPhotos.length > 0 && isActiveProviderConfigured && !isGenerating}
+            error={error}
+            notice={notice}
+            onDismissFeedback={() => { setError(null); setNotice(''); }}
             sessions={sessionHistory}
             onNewSession={handleReset}
             onGenerateMore={handleGenerateMore}

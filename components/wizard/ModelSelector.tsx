@@ -1,6 +1,6 @@
-import React from 'react';
-import { Cpu, KeyRound, Link2, Sparkles } from 'lucide-react';
-import { AIProvider, WizardState } from '../../types';
+import { useState } from 'react';
+import { Circle, CircleDot, Eye, EyeOff } from 'lucide-react';
+import type { AIProvider, WizardState } from '../../types';
 
 interface ModelSelectorProps {
   data: WizardState;
@@ -13,152 +13,132 @@ interface ModelSelectorProps {
   onLocalEndpointsChange: (patch: Partial<{ text: string; vton: string }>) => void;
 }
 
-const providers = [
-  { id: 'openai' as const, name: 'OpenAI', note: 'Cloud', detail: 'One key for every available OpenAI model.' },
-  { id: 'gemini' as const, name: 'Gemini', note: 'Google', detail: 'One key for Gemini analysis and image generation.' },
-  { id: 'openrouter' as const, name: 'OpenRouter', note: 'Cloud', detail: 'Use OpenRouter models through one API key.' },
-  { id: 'local' as const, name: 'Local', note: 'Private', detail: 'Connect your local text and virtual try-on services.' },
-];
-
-const modelOptions: Partial<Record<Exclude<AIProvider, 'local'>, Array<{ value: string; label: string }>>> = {
-  openai: [
-    { value: 'gpt-5.4-nano', label: 'GPT-5.4 Nano' },
-  ],
-  gemini: [
-    { value: 'gemini-3.5-flash', label: 'Gemini 3.5 Flash' },
-  ],
-  openrouter: [
-    { value: 'stealth/ox-alpha', label: 'Ox Alpha' },
-    { value: 'openrouter/free', label: 'OpenRouter Free Router' },
-  ],
+const providers = {
+  gemini: { name: 'Gemini', models: [{ value: 'gemini-3.5-flash', label: 'Gemini 3.5 Flash' }] },
+  openai: { name: 'OpenAI', models: [{ value: 'gpt-5.4-nano', label: 'GPT-5.4 Nano' }] },
+  openrouter: { name: 'OpenRouter', models: [{ value: 'stealth/ox-alpha', label: 'Ox Alpha' }, { value: 'openrouter/free', label: 'OpenRouter Free Router' }] },
+  meta: { name: 'Meta', models: [{ value: 'muse-spark-1.3', label: 'Muse Spark 1.3' }, { value: 'muse-wonder-1.0', label: 'Muse Wonder 1.0' }, { value: 'muse-ember-1.0', label: 'Muse Ember 1.0' }] },
+  local: { name: 'Local', models: [] },
 };
 
-const defaultModel = (provider: AIProvider) => {
-  if (provider === 'openai') return 'gpt-5.4-nano';
-  if (provider === 'gemini') return 'gemini-3.5-flash';
-  if (provider === 'openrouter') return 'stealth/ox-alpha';
-  return 'local';
-};
+const providerIds: AIProvider[] = ['gemini', 'openai', 'openrouter', 'meta', 'local'];
+const fieldLabel = 'grid min-w-0 gap-1.5 text-sm font-semibold text-stone-800';
 
-export const ModelSelector: React.FC<ModelSelectorProps> = ({
-  data,
-  apiKey,
-  hasServerKey,
-  localTextApiUrl,
-  localVtonApiUrl,
-  onChange,
-  onApiKeyChange,
-  onLocalEndpointsChange,
-}) => {
-  const selectProvider = (provider: AIProvider) => {
-    onChange({ backend: provider, model: data.backend === provider ? data.model : defaultModel(provider) });
-  };
-
-  const availableModels = data.backend === 'local' ? [] : modelOptions[data.backend] || [];
-  const isCustomModel = data.backend !== 'local' && !availableModels.some((model) => model.value === data.model);
+export function ModelSelector({
+  data, apiKey, hasServerKey, localTextApiUrl, localVtonApiUrl, onChange, onApiKeyChange, onLocalEndpointsChange,
+}: ModelSelectorProps) {
+  const [showKey, setShowKey] = useState(false);
+  const provider = providers[data.backend];
+  const isLocal = data.backend === 'local';
+  const isCustomModel = !isLocal && !provider.models.some((model) => model.value === data.model);
+  const credentialStatus = hasServerKey ? 'Server key configured' : 'API key required';
+  const status = isLocal
+    ? (localTextApiUrl.trim() && localVtonApiUrl.trim() ? 'Local endpoints entered' : 'Local endpoints required')
+    : (apiKey.trim() ? 'Session key entered' : credentialStatus);
+  const hasConfiguration = isLocal ? Boolean(localTextApiUrl.trim() && localVtonApiUrl.trim()) : Boolean(apiKey.trim() || hasServerKey);
 
   return (
-    <section className="mb-8 overflow-hidden rounded-[2rem] border border-stone-200 bg-white shadow-[0_20px_60px_-42px_rgba(28,25,23,0.45)]">
-      <div className="flex flex-col gap-2 border-b border-stone-100 px-6 py-5 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <p className="mb-1 text-xs font-semibold uppercase tracking-[0.2em] text-teal-700">AI provider</p>
-          <h2 className="text-xl font-semibold tracking-tight text-stone-950">Choose a provider and add its key</h2>
+    <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,2fr)_minmax(16rem,0.9fr)]">
+      <section className="studio-panel grid gap-6 p-4 sm:p-7" aria-labelledby="provider-title">
+        <h2 id="provider-title" className="section-title text-2xl">AI provider</h2>
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-[repeat(auto-fit,minmax(7.25rem,1fr))]" role="group" aria-label="AI provider">
+          {providerIds.map((id) => {
+            const selected = data.backend === id;
+            const Icon = selected ? CircleDot : Circle;
+            return (
+              <button
+                key={id}
+                type="button"
+                aria-pressed={selected}
+                onClick={() => {
+                  if (selected) return;
+                  setShowKey(false);
+                  onChange({ backend: id, model: providers[id].models[0]?.value || 'local' });
+                }}
+                className="flex min-h-12 items-center gap-2 rounded-md border border-stone-300 px-2.5 text-left text-sm font-semibold hover:border-plum-600 hover:bg-plum-50 aria-pressed:border-plum-600 aria-pressed:bg-plum-100 aria-pressed:text-plum-900 sm:px-3"
+              >
+                <Icon className="size-4 shrink-0" strokeWidth={selected ? 2.25 : 1.5} aria-hidden="true" />
+                {providers[id].name}
+              </button>
+            );
+          })}
         </div>
-        <p className="max-w-sm text-sm leading-6 text-stone-500">Each cloud provider shares one key across all of its models. Settings stay with your current session.</p>
-      </div>
 
-      <div className="grid gap-3 p-4 sm:grid-cols-2 lg:grid-cols-4">
-        {providers.map((provider) => {
-          const selected = data.backend === provider.id;
-          const cardClass = selected
-            ? 'border-teal-700 bg-teal-50/70 shadow-[0_0_0_1px_#0f766e]'
-            : 'border-stone-200 bg-white hover:-translate-y-0.5 hover:border-stone-300 hover:shadow-lg';
-          return (
-            <button
-              key={provider.id}
-              type="button"
-              onClick={() => selectProvider(provider.id)}
-              className={'group min-h-36 rounded-2xl border p-4 text-left transition ' + cardClass}
-            >
-              <div className="mb-6 flex items-center justify-between">
-                <span className={'grid h-9 w-9 place-items-center rounded-xl ' + (selected ? 'bg-teal-700 text-white' : 'bg-stone-100 text-stone-600')}>
-                  {provider.id === 'local' ? <Cpu className="h-4 w-4" /> : <Sparkles className="h-4 w-4" />}
-                </span>
-                <span className="rounded-full bg-stone-100 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-stone-500">{provider.note}</span>
-              </div>
-              <div className="font-semibold text-stone-950">{provider.name}</div>
-              <div className="mt-1 text-xs leading-5 text-stone-500">{provider.detail}</div>
-            </button>
-          );
-        })}
-      </div>
+        <p role="status" className={'flex items-center gap-2 text-sm font-semibold ' + (hasConfiguration ? 'text-emerald-800' : 'text-amber-800')}>
+          <span className="size-2 rounded-full bg-current" aria-hidden="true" />{status}
+        </p>
 
-      {data.backend !== 'local' ? (
-        <div className="grid gap-4 border-t border-stone-100 bg-stone-50/70 px-5 py-5 md:grid-cols-2">
-          <label className="space-y-2">
-            <span className="block text-xs font-semibold uppercase tracking-[0.16em] text-stone-500">Model</span>
-            <select
-              value={isCustomModel ? '__custom__' : data.model}
-              onChange={(event) => onChange({ model: event.target.value === '__custom__' ? '' : event.target.value })}
-              className="w-full rounded-xl border border-stone-200 bg-white px-4 py-3 text-sm text-stone-900 outline-none transition focus:border-teal-500 focus:ring-4 focus:ring-teal-100"
-            >
-              {availableModels.map((model) => <option key={model.value} value={model.value}>{model.label}</option>)}
-              <option value="__custom__">Enter a custom model ID...</option>
-            </select>
+        {isLocal ? (
+          <>
+            <div className={fieldLabel}>
+              <label htmlFor="local-text-endpoint">Local text endpoint</label>
+              <input id="local-text-endpoint" aria-describedby="local-text-help" type="url" value={localTextApiUrl} onChange={(event) => onLocalEndpointsChange({ text: event.target.value })} placeholder="http://localhost:11434/v1" className="studio-field" />
+              <p id="local-text-help" className="text-xs font-normal leading-relaxed text-stone-600">OpenAI-compatible chat completions endpoint.</p>
+            </div>
+            <div className={fieldLabel}>
+              <label htmlFor="local-try-on-endpoint">Virtual try-on endpoint</label>
+              <input id="local-try-on-endpoint" aria-describedby="local-try-on-help" type="url" value={localVtonApiUrl} onChange={(event) => onLocalEndpointsChange({ vton: event.target.value })} placeholder="http://127.0.0.1:7860" className="studio-field" />
+              <p id="local-try-on-help" className="text-xs font-normal leading-relaxed text-stone-600">Gradio-compatible image generation endpoint.</p>
+            </div>
+          </>
+        ) : (
+          <>
+            <div className={fieldLabel}>
+              <label htmlFor="provider-model">Model</label>
+              <select
+                id="provider-model"
+                value={isCustomModel ? '__custom__' : data.model}
+                onChange={(event) => onChange({ model: event.target.value === '__custom__' ? '' : event.target.value })}
+                className="studio-field"
+              >
+                {provider.models.map((model) => <option key={model.value} value={model.value}>{model.label}</option>)}
+                <option value="__custom__">Enter a custom model ID…</option>
+              </select>
+            </div>
             {isCustomModel && (
-              <input
-                type="text"
-                value={data.model}
-                onChange={(event) => onChange({ model: event.target.value })}
-                placeholder={data.backend === 'openrouter' ? 'provider/model-name or provider/model-name:free' : 'Enter the provider model ID'}
-                autoComplete="off"
-                className="w-full rounded-xl border border-stone-200 bg-white px-4 py-3 text-sm text-stone-900 outline-none transition placeholder:text-stone-400 focus:border-teal-500 focus:ring-4 focus:ring-teal-100"
-              />
+              <label className={fieldLabel}>Custom model ID
+                <input type="text" autoComplete="off" spellCheck={false} value={data.model} onChange={(event) => onChange({ model: event.target.value })} placeholder={data.backend === 'openrouter' ? 'provider/model-name' : 'Enter the provider model ID'} className="studio-field" />
+              </label>
             )}
-            <span className="block text-xs leading-5 text-stone-500">Use a model ID supported by the selected provider.</span>
-          </label>
+            <div className="grid gap-1.5">
+              <label htmlFor="provider-key" className="text-sm font-semibold text-stone-800">{provider.name} API key</label>
+              <div className="relative">
+                <input
+                  id="provider-key"
+                  type={showKey ? 'text' : 'password'}
+                  value={apiKey}
+                  onChange={(event) => onApiKeyChange(event.target.value)}
+                  placeholder={hasServerKey ? 'Optional override for the server key' : 'Enter your API key'}
+                  autoComplete="off"
+                  spellCheck={false}
+                  className="studio-field pr-14"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowKey((visible) => !visible)}
+                  aria-label={showKey ? 'Hide API key' : 'Show API key'}
+                  className="absolute inset-y-0 right-0 grid w-11 place-items-center rounded-r-md text-stone-600 hover:bg-plum-50 hover:text-plum-800"
+                >
+                  {showKey ? <EyeOff className="size-4" aria-hidden="true" /> : <Eye className="size-4" aria-hidden="true" />}
+                </button>
+              </div>
+            </div>
+          </>
+        )}
+      </section>
 
-          <label className="space-y-2">
-            <span className="flex items-center justify-between gap-3 text-xs font-semibold uppercase tracking-[0.16em] text-stone-500">
-              <span className="flex items-center gap-2"><KeyRound className="h-3.5 w-3.5" />{data.backend === 'openai' ? 'OpenAI' : data.backend === 'openrouter' ? 'OpenRouter' : 'Gemini'} API key</span>
-              <span className={hasServerKey ? 'text-teal-700' : 'text-amber-700'}>{hasServerKey ? 'Server key configured' : 'Required'}</span>
-            </span>
-            <input
-              type="password"
-              value={apiKey}
-              onChange={(event) => onApiKeyChange(event.target.value)}
-              placeholder={hasServerKey ? 'Using server key - enter to override' : data.backend === 'gemini' ? 'AIza...' : 'sk-...'}
-              autoComplete="off"
-              className="w-full rounded-xl border border-stone-200 bg-white px-4 py-3 text-sm text-stone-900 outline-none transition placeholder:text-stone-400 focus:border-teal-500 focus:ring-4 focus:ring-teal-100"
-            />
-          </label>
-        </div>
-      ) : (
-        <div className="grid gap-4 border-t border-stone-100 bg-stone-50/70 px-5 py-5 md:grid-cols-2">
-          <label className="space-y-2">
-            <span className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.16em] text-stone-500"><Link2 className="h-3.5 w-3.5" />Local text endpoint</span>
-            <input
-              type="url"
-              value={localTextApiUrl}
-              onChange={(event) => onLocalEndpointsChange({ text: event.target.value })}
-              placeholder="http://localhost:11434/v1"
-              className="w-full rounded-xl border border-stone-200 bg-white px-4 py-3 text-sm text-stone-900 outline-none transition placeholder:text-stone-400 focus:border-teal-500 focus:ring-4 focus:ring-teal-100"
-            />
-            <span className="block text-xs leading-5 text-stone-500">OpenAI-compatible chat completions endpoint.</span>
-          </label>
-          <label className="space-y-2">
-            <span className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.16em] text-stone-500"><Link2 className="h-3.5 w-3.5" />Virtual try-on endpoint</span>
-            <input
-              type="url"
-              value={localVtonApiUrl}
-              onChange={(event) => onLocalEndpointsChange({ vton: event.target.value })}
-              placeholder="http://127.0.0.1:7860"
-              className="w-full rounded-xl border border-stone-200 bg-white px-4 py-3 text-sm text-stone-900 outline-none transition placeholder:text-stone-400 focus:border-teal-500 focus:ring-4 focus:ring-teal-100"
-            />
-            <span className="block text-xs leading-5 text-stone-500">Gradio-compatible image generation endpoint.</span>
-          </label>
-        </div>
-      )}
-    </section>
+      <aside className="rounded-xl border border-plum-200 bg-plum-50 p-5 sm:p-6">
+        <h2 className="section-title text-2xl">Setup guidance</h2>
+        {isLocal ? (
+          <p className="mt-3 text-sm leading-relaxed text-stone-700">Enter both endpoints to use local analysis and virtual try-on. Select a cloud provider to extract pieces from wardrobe photos.</p>
+        ) : (
+          <>
+            <p className="mt-3 text-sm leading-relaxed text-stone-700">Choose a preset or enter a model ID supported by {provider.name}. If a server key is configured, you can start using it immediately.</p>
+            {data.backend === 'meta' && <p className="mt-3 text-sm leading-relaxed text-stone-700">Muse analyzes the brief, Muse Image renders previews, and SAM 3.1 isolates wardrobe pieces with the same key.</p>}
+            <p className="mt-4 border-t border-plum-200 pt-4 text-sm leading-relaxed text-stone-700">Keys you enter apply to this browser session and are sent to the server when you make a request.</p>
+          </>
+        )}
+      </aside>
+    </div>
   );
-};
+}

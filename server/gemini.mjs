@@ -1,3 +1,4 @@
+import { imageParts } from './images.mjs';
 import { GoogleGenAI } from '@google/genai';
 
 const TEXT_MODEL = 'gemini-3.5-flash';
@@ -373,7 +374,7 @@ export const createGeminiService = (apiKey, imageGeneratorOverride = null, textM
 
     data.userPhotos.forEach((photo, index) => {
       parts.push({
-        inlineData: { data: photo, mimeType: 'image/jpeg' },
+        inlineData: imageParts(photo),
       });
       if (index === 0) {
         parts.push({ text: 'The previous image is the primary identity anchor. Preserve this facial identity in all generated outfit images.' });
@@ -382,21 +383,21 @@ export const createGeminiService = (apiKey, imageGeneratorOverride = null, textM
 
     data.wardrobePhotos.forEach((photo, index) => {
       parts.push({
-        inlineData: { data: photo, mimeType: 'image/jpeg' },
+        inlineData: imageParts(photo),
       });
       parts.push({ text: `The previous image is wardrobe reference photo ${index + 1}. Identify reusable owned pieces from it.` });
     });
 
     if (data.referenceImage) {
       parts.push({
-        inlineData: { data: data.referenceImage, mimeType: 'image/jpeg' },
+        inlineData: imageParts(data.referenceImage),
       });
       parts.push({ text: 'The previous image is a direct reference style image. Use it for silhouette, layering, and overall styling direction.' });
     }
 
     if (data.garmentImage) {
       parts.push({
-        inlineData: { data: data.garmentImage, mimeType: 'image/jpeg' },
+        inlineData: imageParts(data.garmentImage),
       });
       parts.push({ text: 'CRITICAL: The previous image is a TARGET GARMENT the user wants to wear. ALL 3 looks MUST feature this exact specific garment. Your job is to suggest how to style this garment 3 different ways (e.g., Casual, Formal, Edgy). For the visualPrompt of each look, ensure you describe a completely different camera pose/angle (e.g., "Full body walking", "Close-up waist up", "Sitting on stool") to show the user the garment from different perspectives.' });
     }
@@ -554,10 +555,7 @@ Return ONLY JSON with this shape:
       contents: {
         parts: [
           {
-            inlineData: {
-              data: baseIdentityImage,
-              mimeType: 'image/jpeg',
-            },
+            inlineData: imageParts(baseIdentityImage),
           },
           {
             text: `${framingPrompt}. ${visualPrompt}. Maintain strict facial identity from the source image.`,
@@ -588,7 +586,7 @@ Return ONLY JSON with this shape:
     const inventoryResponse = await ai.models.generateContent({
       model: textModel,
       contents: { parts: [
-        { inlineData: { data: sourceImage, mimeType: 'image/jpeg' } },
+        { inlineData: imageParts(sourceImage) },
         { text: 'Inventory every distinct deliberately worn garment in this outfit photo. Include tops, bottoms, outerwear, dresses, shoes, belts, bags, ties, and headwear. Exclude the person, jewelry, and scene. Keep layers separate. Return JSON only with items containing label, category (tops, bottoms, outerwear, dresses, shoes, accessories, or other), and a source-visible description of color, material, silhouette, construction, and pattern. State uncertainty instead of guessing. Maximum 8 items.' },
       ] },
       config: { responseMimeType: 'application/json' },
@@ -611,7 +609,7 @@ Return ONLY JSON with this shape:
       const response = await ai.models.generateContent({
         model: IMAGE_MODEL,
         contents: { parts: [
-          { inlineData: { data: sourceImage, mimeType: 'image/jpeg' } },
+          { inlineData: imageParts(sourceImage) },
           { text: 'Reconstruct ONLY this exact garment from the outfit photo as a clean ecommerce catalog cutout: ' + label + '. Source evidence: ' + description + '. Remove the wearer, body, skin, hair, underlayers, other clothing, props, and scene. Show one complete empty item, centered with generous padding. Preserve only source-supported details and invent nothing. Return a transparent-background PNG with no mannequin, hanger, shadow, reflection, caption, border, or watermark.' },
         ] },
         config: { imageConfig: { aspectRatio: '1:1' } },

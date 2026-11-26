@@ -1,151 +1,118 @@
-import React from 'react';
-import { ArrowRight, Briefcase, Clock3, History, Leaf, Trash2 } from 'lucide-react';
+import { ArrowRight, ClipboardList, Shirt, Trash2 } from 'lucide-react';
 import Button from '../Button';
 import { SessionRecord } from '../../types';
 
 interface HomePageProps {
   sessions: SessionRecord[];
   onStart: () => void;
+  onOpenWardrobe: () => void;
   onRestore: (session: SessionRecord) => void;
   onDelete: (sessionId: string) => void;
 }
 
-const EXAMPLES = [
-  'https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?w=400&q=80',
-  'https://images.unsplash.com/photo-1483985988355-763728e1935b?w=400&q=80',
-  'https://images.unsplash.com/photo-1539109136881-3be0616acf4b?w=400&q=80',
-];
+export function HomePage({ sessions, onStart, onOpenWardrobe, onRestore, onDelete }: HomePageProps) {
+  const studioLinks = [
+    { label: 'Style brief', detail: 'Plan outfits, try-on previews, and hair direction.', Icon: ClipboardList, onClick: onStart },
+    { label: 'Wardrobe', detail: 'Add outfit photos and reuse individual pieces.', Icon: Shirt, onClick: onOpenWardrobe },
+  ];
 
-const EXAMPLE_LABELS = ['Urban Chic', 'Summer Vibes', 'Business Modern'];
-
-export const HomePage: React.FC<HomePageProps> = ({ sessions, onStart, onRestore, onDelete }) => {
   return (
-    <div className="mx-auto flex w-full max-w-7xl flex-col gap-12 px-4 pb-20 sm:px-6 lg:px-8">
-      <section className="flex min-h-[72vh] flex-col items-center justify-center gap-12 pt-10 text-center">
-        <div className="space-y-6 animate-fade-in">
-          <h1 className="text-5xl font-semibold tracking-[-0.05em] text-stone-950 md:text-7xl">
-            Reinvent Your <span className="text-teal-600">Style</span>
+    <div className="studio-shell py-6 sm:py-9 lg:py-[2.375rem]">
+      <section className="grid grid-cols-1 items-center gap-7 border-b studio-rule pb-8 md:grid-cols-[minmax(0,0.82fr)_minmax(0,1fr)] md:gap-8 lg:gap-10">
+        <div className="py-2 lg:pl-5">
+          <h1 className="text-[clamp(3.15rem,7.1vw,6.75rem)] font-semibold leading-[0.95] tracking-[-0.055em] text-stone-950">
+            {'A style of '}
+            <em className="block pr-3 pb-2 text-plum-700">your own.</em>
           </h1>
-          <p className="mx-auto max-w-2xl text-lg leading-8 text-stone-500">
-            Your personal AI stylist. Upload your photo, choose your vibe, and get custom outfits and haircut suggestions instantly.
+          <p className="mt-5 max-w-[34rem] text-base leading-[1.47] text-stone-700 lg:mt-8 lg:text-[1.5rem]">
+            Build outfits around your occasion, your preferences, and the pieces you already own.
           </p>
-          <div className="flex justify-center">
-            <Button onClick={onStart} className="px-10 py-4 text-lg shadow-teal-200">
-              Get Started <ArrowRight className="ml-2 h-5 w-5" />
+          <div className="mt-6 flex flex-col items-stretch gap-x-6 gap-y-1 sm:flex-row sm:flex-wrap sm:items-center sm:gap-y-3 lg:mt-11 lg:gap-x-9">
+            <Button onClick={onStart} className="min-h-12 lg:min-h-14 lg:gap-4 lg:px-7 lg:text-[1.375rem]">
+              Create a style brief <ArrowRight className="size-5 shrink-0 lg:size-6" aria-hidden="true" />
             </Button>
-          </div>
-        </div>
-
-        <div className="grid w-full grid-cols-1 gap-8 md:grid-cols-3 md:gap-12">
-          {EXAMPLES.map((src, index) => (
-            <div
-              key={src}
-              className="overflow-hidden rounded-3xl border border-stone-200 bg-white p-2 pb-4 shadow-sm transition duration-300 hover:-translate-y-1 hover:shadow-xl"
+            <button
+              type="button"
+              onClick={onOpenWardrobe}
+              className="min-h-11 text-sm font-semibold text-plum-700 underline decoration-1 underline-offset-[0.45em] transition-colors hover:text-plum-900 lg:text-[1.375rem]"
             >
-              <div className="aspect-[3/4] overflow-hidden rounded-2xl bg-stone-100">
-                <img src={src} alt={EXAMPLE_LABELS[index]} className="h-full w-full object-cover" />
-              </div>
-              <div className="mt-3 px-2 text-left text-sm font-medium text-stone-700">
-                {EXAMPLE_LABELS[index]}
-              </div>
-            </div>
-          ))}
+              Open wardrobe
+            </button>
+          </div>
         </div>
+        <img
+          src="/studio/editorial.webp"
+          alt="Espresso tailoring and ivory trousers against a lilac studio wall"
+          width={1510}
+          height={1041}
+          fetchPriority="high"
+          className="studio-hero-photo aspect-[1.4] bg-[#b99ca5] object-cover object-[76%_50%] sm:aspect-[1.45] sm:w-full sm:rounded-lg"
+        />
+      </section>
 
-        <div className="grid w-full grid-cols-1 gap-8 text-left md:grid-cols-2">
-          <div className="flex flex-col items-start gap-4 rounded-3xl border border-stone-200 bg-white p-8 shadow-sm transition-all hover:shadow-lg md:p-10">
-            <div className="mb-2 rounded-2xl bg-stone-900 p-3 text-white">
-              <Briefcase className="h-8 w-8" />
-            </div>
-            <h2 className="text-2xl font-bold text-stone-900">Personal Brand Consultant</h2>
-            <p className="leading-relaxed text-stone-500">
-              Analyze your professional context, industry trends, and career goals. We recommend complete style transformations with detailed reasoning to help you command the room and elevate your professional identity.
-            </p>
-          </div>
-
-          <div className="flex flex-col items-start gap-4 rounded-3xl border border-teal-100 bg-teal-50/60 p-8 shadow-sm transition-all hover:shadow-lg md:p-10">
-            <div className="mb-2 rounded-2xl bg-emerald-600 p-3 text-white">
-              <Leaf className="h-8 w-8" />
-            </div>
-            <h2 className="text-2xl font-bold text-emerald-900">Sustainable Fashion Advisor</h2>
-            <p className="leading-relaxed text-emerald-800">
-              Build smarter outfits around your real-life needs. The app now helps turn your brief into more reusable, lower-regret style decisions instead of one-off inspiration.
-            </p>
-          </div>
+      <section className="mt-6" aria-labelledby="studio-links-title">
+        <h2 id="studio-links-title" className="section-title mb-4 text-[1.75rem] lg:text-[2.35rem]">Explore the studio</h2>
+        <div className="grid gap-x-6 md:grid-cols-2">
+          {studioLinks.map(({ label, detail, Icon, onClick }) => (
+            <button
+              key={label}
+              type="button"
+              onClick={onClick}
+              className="group grid w-full grid-cols-[auto_1fr_auto] items-center gap-4 border-b studio-rule px-2 py-3 text-left transition-colors first:border-t hover:bg-plum-50 md:border-t lg:gap-8 lg:px-5"
+            >
+              <Icon className="size-7 text-plum-700 lg:size-10" strokeWidth={1.35} aria-hidden="true" />
+              <span className="grid gap-0.5">
+                <span className="text-base font-bold text-stone-950 lg:text-[1.375rem]">{label}</span>
+                <span className="text-sm text-stone-700 lg:text-[1.125rem]">{detail}</span>
+              </span>
+              <ArrowRight className="size-5 text-plum-700 transition-transform group-hover:translate-x-1 lg:size-6" strokeWidth={1.55} aria-hidden="true" />
+            </button>
+          ))}
         </div>
       </section>
 
-      <section className="space-y-5">
-        <div className="flex items-center gap-2">
-          <History className="h-5 w-5 text-stone-500" />
-          <h2 className="text-xl font-semibold text-stone-900">Recent sessions</h2>
-        </div>
-
+      <section className="mt-8 pb-3 lg:mt-9" aria-labelledby="recent-sessions-title">
+        <h2 id="recent-sessions-title" className="section-title mb-4 text-[1.75rem] lg:text-[2.35rem]">Recent sessions</h2>
         {sessions.length === 0 ? (
-          <div className="rounded-[2rem] border border-dashed border-stone-300 bg-white p-10 text-center text-stone-500">
-            Your recent sessions will appear here once you generate a style collection.
-          </div>
+          <p className="border-y studio-rule px-3 py-3 text-sm text-stone-700 lg:px-6 lg:text-[1.125rem]">
+            Your saved style collections will appear here.
+          </p>
         ) : (
-          <div className="grid gap-4 lg:grid-cols-2">
+          <ul className="divide-y divide-stone-200 border-y studio-rule">
             {sessions.map((session) => {
-              const previewLook = session.analysis.styles[0];
-              const previewImage = previewLook ? session.styleImages[previewLook.id] : '';
+              const preview = session.analysis.styles[0];
+              const image = preview && session.styleImages[preview.id];
               return (
-                <article
-                  key={session.id}
-                  className="grid gap-4 rounded-[2rem] border border-stone-200 bg-white p-5 shadow-sm sm:grid-cols-[160px_1fr]"
-                >
-                  <div className="overflow-hidden rounded-3xl bg-stone-100">
-                    {previewImage ? (
-                      <img
-                        src={previewImage}
-                        alt={previewLook?.title ?? 'Saved session'}
-                        className="aspect-[3/4] h-full w-full object-cover"
-                      />
-                    ) : (
-                      <div className="flex aspect-[3/4] items-center justify-center text-sm text-stone-400">No preview</div>
-                    )}
-                  </div>
-
-                  <div className="flex min-w-0 flex-col justify-between gap-4">
-                    <div className="space-y-3">
-                      <div className="flex items-center justify-between gap-4">
-                        <div className="min-w-0">
-                          <h3 className="truncate text-lg font-semibold text-stone-900">{session.analysis.summary.headline}</h3>
-                          <p className="text-sm text-stone-500">{session.wizardData.goals || session.wizardData.occasion}</p>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => onDelete(session.id)}
-                          className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-stone-200 text-stone-500 transition hover:border-red-200 hover:bg-red-50 hover:text-red-600"
-                          aria-label="Delete saved session"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
-                      </div>
-
-                      <div className="flex flex-wrap gap-2 text-xs text-stone-500">
-                        <span className="inline-flex items-center gap-1 rounded-full bg-stone-100 px-3 py-1">
-                          <Clock3 className="h-3.5 w-3.5" />
-                          {new Date(session.createdAt).toLocaleString()}
-                        </span>
-                        <span className="rounded-full bg-stone-100 px-3 py-1">{session.wizardData.budget}</span>
-                        <span className="rounded-full bg-stone-100 px-3 py-1">{session.wizardData.dressCode}</span>
-                      </div>
-
-                      <p className="line-clamp-3 text-sm leading-6 text-stone-600">{session.analysis.summary.bestLookReason}</p>
-                    </div>
-
-                    <Button variant="outline" onClick={() => onRestore(session)} className="self-start">
-                      Reopen session
-                    </Button>
-                  </div>
-                </article>
+                <li key={session.id} className="flex items-center gap-2 sm:gap-4">
+                  <button
+                    type="button"
+                    onClick={() => onRestore(session)}
+                    className="group flex min-w-0 flex-1 items-center gap-3 rounded-md py-3 pr-1 text-left hover:bg-plum-50 sm:gap-5 sm:px-3"
+                  >
+                    {image && <img src={image} alt="" loading="lazy" className="h-17 w-13 shrink-0 rounded-sm object-cover" />}
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate font-semibold">{session.analysis.summary.headline}</span>
+                      <span className="block truncate text-sm text-stone-600">{session.wizardData.goals || session.wizardData.occasion}</span>
+                      <time dateTime={session.createdAt} className="mt-1 block text-xs text-stone-500">
+                        {new Date(session.createdAt).toLocaleDateString()}
+                      </time>
+                    </span>
+                    <ArrowRight className="size-4 shrink-0 text-plum-700" aria-hidden="true" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => onDelete(session.id)}
+                    className="grid size-11 shrink-0 place-items-center rounded-md text-stone-600 hover:bg-red-50 hover:text-red-800"
+                    aria-label={'Delete saved session: ' + session.analysis.summary.headline}
+                  >
+                    <Trash2 className="size-4" aria-hidden="true" />
+                  </button>
+                </li>
               );
             })}
-          </div>
+          </ul>
         )}
       </section>
     </div>
   );
-};
+}

@@ -7,6 +7,7 @@ import { createGeminiService } from './server/gemini.mjs';
 import { createLocalService } from './server/local.mjs';
 import { createOpenAIService } from './server/openai.mjs';
 import { createOpenRouterService } from './server/openrouter.mjs';
+import { createMetaService, DEFAULT_META_MODEL } from './server/meta.mjs';
 import { createShoppingService } from './server/shopping.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -21,6 +22,7 @@ const mimeTypes = {
   '.png': 'image/png',
   '.jpg': 'image/jpeg',
   '.jpeg': 'image/jpeg',
+  '.webp': 'image/webp',
   '.woff2': 'font/woff2',
 };
 
@@ -66,6 +68,7 @@ const configuredKeys = {
   gemini: process.env.GEMINI_API_KEY || process.env.API_KEY || '',
   openai: process.env.OPENAI_API_KEY || '',
   openrouter: process.env.OPENROUTER_API_KEY || '',
+  meta: process.env.META_API_KEY || '',
 };
 
 const resolveService = (wizardData = {}, credentials = {}) => {
@@ -78,6 +81,7 @@ const resolveService = (wizardData = {}, credentials = {}) => {
   }
   if (wizardData.backend === 'openai') return createOpenAIService(credentials.apiKey || configuredKeys.openai, wizardData.model || 'gpt-5.4-nano');
   if (wizardData.backend === 'openrouter') return createOpenRouterService(credentials.apiKey || configuredKeys.openrouter, wizardData.model || 'stealth/ox-alpha');
+  if (wizardData.backend === 'meta') return createMetaService(credentials.apiKey || configuredKeys.meta, wizardData.model || DEFAULT_META_MODEL);
   return createGeminiService(credentials.apiKey || configuredKeys.gemini, localService.generateSingleImage, wizardData.model || 'gemini-3.5-flash');
 };
 
@@ -111,7 +115,10 @@ const handleApi = async (req, res) => {
 
   try {
     if (req.method === 'GET' && req.url === '/api/provider-status') {
-      sendJson(res, 200, { gemini: Boolean(configuredKeys.gemini), openai: Boolean(configuredKeys.openai), openrouter: Boolean(configuredKeys.openrouter) });
+      sendJson(res, 200, {
+        ...Object.fromEntries(Object.entries(configuredKeys).map(([provider, key]) => [provider, Boolean(key)])),
+        visualSearch: Boolean(process.env.IMGBB_API_KEY && process.env.SERPAPI_API_KEY),
+      });
       return true;
     }
 
@@ -136,14 +143,22 @@ const handleApi = async (req, res) => {
     }
 
     if (req.method === 'POST' && req.url === '/api/extract-wardrobe-items') {
-      const { image, wizardData, credentials } = await readJsonBody(req);
+      const { image, wizardData, credentials, extractor, targetGarment, metaApiKey } = await readJsonBody(req);
       if (!image || typeof image !== 'string') {
         sendJson(res, 400, { error: 'An outfit image is required.' });
         return true;
       }
+      if (extractor === 'meta-sam' || wizardData?.backend === 'meta') {
+        const key = metaApiKey || (wizardData?.backend === 'meta' && credentials?.apiKey) || configuredKeys.meta;
+        const model = wizardData?.backend === 'meta' ? wizardData.model || DEFAULT_META_MODEL : DEFAULT_META_MODEL;
+        const service = createMetaService(key, model);
+        const extraction = await service.extractWardrobeItems(image, typeof targetGarment === 'string' ? targetGarment : '');
+        sendJson(res, 200, extraction);
+        return true;
+      }
       const service = resolveService(wizardData, credentials);
       if (!service.extractWardrobeItems) {
-        throw new Error('This local VTON endpoint can try clothes on a person, but it cannot extract separate garments. Select OpenAI or Gemini for outfit imports.');
+        throw new Error('Select a cloud provider or configure Meta SAM for outfit imports.');
       }
       const items = await service.extractWardrobeItems(image);
       sendJson(res, 200, { items });
@@ -161,6 +176,21 @@ const handleApi = async (req, res) => {
     if (req.method === 'POST' && req.url === '/api/visual-search') {
       const { image } = await readJsonBody(req);
       const shoppingItems = await shoppingService.findShoppingLinks(image);
+      sendJson(res, 200, { shoppingItems });
+      return true;
+    }
+
+    if (req.method === 'POST' && req.url === '/api/find-wardrobe-matches') {
+      const { image, query, method, metaApiKey } = await readJsonBody(req);
+      const description = typeof query === 'string' ? query.trim().slice(0, 240) : '';
+      const cutout = typeof image === 'string' && image.length <= 3_000_000 ? image : '';
+      if (!description || (method === 'lens' && !cutout)) {
+        sendJson(res, 400, { error: 'A garment description, and a cutout for Lens, is required.' });
+        return true;
+      }
+      const shoppingItems = method === 'lens'
+        ? await shoppingService.findShoppingLinks(cutout)
+        : await createMetaService(metaApiKey || configuredKeys.meta).findGarmentMatches({ image: cutout, query: description });
       sendJson(res, 200, { shoppingItems });
       return true;
     }

@@ -128,11 +128,13 @@ export const loadWardrobeLibrary = (): WardrobeItem[] => {
 
 export const saveWardrobeLibrary = (items: WardrobeItem[]) => {
   if (typeof window === 'undefined') {
-    return;
+    return false;
   }
   try {
     window.localStorage.setItem(WARDROBE_KEY, JSON.stringify(items));
+    return true;
   } catch (err) {
     console.error('Failed to save wardrobe library', err);
+    return false;
   }
 };

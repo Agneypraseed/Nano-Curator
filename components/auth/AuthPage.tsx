@@ -1,14 +1,15 @@
 import React, { useState } from 'react';
-import { ArrowLeft, CheckCircle2, Mail } from 'lucide-react';
+import { CheckCircle2, Mail, UserRound } from 'lucide-react';
 import Button from '../Button';
 import { isSupabaseConfigured, sendMagicLink, signInWithGoogle } from '../../services/supabase';
 import { ErrorMessage } from '../ErrorMessage';
 
 interface AuthPageProps {
   onContinueGuest: () => void;
+  onOpenProfile: () => void;
 }
 
-export const AuthPage: React.FC<AuthPageProps> = ({ onContinueGuest }) => {
+export const AuthPage: React.FC<AuthPageProps> = ({ onContinueGuest, onOpenProfile }) => {
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState<'email' | 'google' | null>(null);
   const [message, setMessage] = useState<string | null>(null);
@@ -41,39 +42,41 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onContinueGuest }) => {
   };
 
   return (
-    <div className="mx-auto grid min-h-[72vh] w-full max-w-xl place-items-center px-4 pb-16 sm:px-6">
-      <div className="w-full overflow-hidden rounded-[2rem] border border-stone-200 bg-white shadow-[0_30px_90px_-55px_rgba(28,25,23,0.55)]">
-        <section className="p-7 sm:p-10">
-          <button type="button" onClick={onContinueGuest} className="mb-10 inline-flex items-center gap-2 text-sm font-medium text-stone-500 transition hover:text-stone-900"><ArrowLeft className="h-4 w-4" />Back to guest mode</button>
-          <p className="mb-2 text-xs font-semibold uppercase tracking-[0.2em] text-teal-700">Your account</p>
-          <h1 className="text-3xl font-semibold tracking-tight text-stone-950">Save your style across sessions</h1>
-          <p className="mt-3 max-w-lg text-sm leading-6 text-stone-500">Use a password-free email link or your Google account. Guest mode remains available for quick demos.</p>
+    <div className="studio-shell py-9 pb-16 sm:py-14">
+      <section className="mx-auto max-w-md">
+        <h1 className="page-title text-center">Save your style across sessions</h1>
+        <p className="mt-4 text-center text-sm leading-relaxed text-stone-700">Sign in to identify your account. Style briefs and your profile are stored in this browser.</p>
 
-          {!isSupabaseConfigured && (
-            <div className="mt-6 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-900">
-              Authentication is scaffolded but not connected. Add <code className="rounded bg-white px-1.5 py-0.5">VITE_SUPABASE_URL</code> and <code className="rounded bg-white px-1.5 py-0.5">VITE_SUPABASE_PUBLISHABLE_KEY</code> to <code className="rounded bg-white px-1.5 py-0.5">.env.local</code>.
-            </div>
-          )}
+        {!isSupabaseConfigured && (
+          <p className="mt-5 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm leading-relaxed text-amber-950">
+            Sign-in is unavailable on this installation. You can still use a guest profile on this device.
+          </p>
+        )}
 
-          <button type="button" disabled={!isSupabaseConfigured || loading !== null} onClick={handleGoogle} className="mt-8 flex w-full items-center justify-center gap-3 rounded-xl border border-stone-200 bg-white px-4 py-3 text-sm font-semibold text-stone-800 transition hover:border-stone-300 hover:bg-stone-50 disabled:cursor-not-allowed disabled:opacity-50">
-            <span className="grid h-6 w-6 place-items-center rounded-full bg-white text-base font-bold text-blue-600">G</span>
-            {loading === 'google' ? 'Opening Google...' : 'Continue with Google'}
+        <Button variant="outline" disabled={!isSupabaseConfigured || loading !== null} onClick={handleGoogle} className="mt-7 w-full" isLoading={loading === 'google'} loadingLabel="Opening Google">
+          <span className="text-base font-bold text-plum-800" aria-hidden="true">G</span>
+          Continue with Google
+        </Button>
+
+        <div className="my-5 flex items-center gap-3 text-sm text-stone-600"><span className="h-px flex-1 bg-stone-300" />or email<span className="h-px flex-1 bg-stone-300" /></div>
+
+        <form onSubmit={handleEmail} className="space-y-4">
+          <label className="grid gap-1.5 text-sm font-semibold">
+            <span className="flex items-center gap-2"><Mail className="size-4 text-plum-700" aria-hidden="true" />Email address</span>
+            <input type="email" autoComplete="email" required value={email} onChange={(event) => setEmail(event.target.value)} placeholder="you@example.com" disabled={!isSupabaseConfigured || loading !== null} className="studio-field disabled:opacity-65" />
+          </label>
+          <Button type="submit" disabled={!isSupabaseConfigured || !email.trim() || loading !== null} isLoading={loading === 'email'} loadingLabel="Sending link" className="w-full">Email me a sign-in link</Button>
+        </form>
+
+        {message && <p className="mt-5 flex gap-2 rounded-lg bg-emerald-50 p-3 text-sm text-emerald-800" role="status"><CheckCircle2 className="mt-0.5 size-4 shrink-0" aria-hidden="true" />{message}</p>}
+        {error && <div className="mt-5 rounded-lg bg-red-50 p-3 text-sm text-red-800"><ErrorMessage message={error} /></div>}
+        <div className="mt-5 flex flex-wrap justify-center gap-x-5">
+          <button type="button" onClick={onContinueGuest} className="min-h-11 text-sm font-semibold text-plum-700 underline underline-offset-4">Back to home</button>
+          <button type="button" onClick={onOpenProfile} className="inline-flex min-h-11 items-center gap-2 text-sm font-semibold text-plum-700 underline underline-offset-4">
+            <UserRound className="size-4" aria-hidden="true" /> Open guest profile
           </button>
-
-          <div className="my-6 flex items-center gap-3 text-xs uppercase tracking-widest text-stone-400"><span className="h-px flex-1 bg-stone-200" />or email<span className="h-px flex-1 bg-stone-200" /></div>
-
-          <form onSubmit={handleEmail} className="space-y-3">
-            <label className="block space-y-2">
-              <span className="flex items-center gap-2 text-sm font-medium text-stone-700"><Mail className="h-4 w-4" />Email address</span>
-              <input type="email" required value={email} onChange={(event) => setEmail(event.target.value)} placeholder="you@example.com" disabled={!isSupabaseConfigured} className="w-full rounded-xl border border-stone-200 bg-white px-4 py-3 text-sm text-stone-900 outline-none transition placeholder:text-stone-400 focus:border-teal-500 focus:ring-4 focus:ring-teal-100 disabled:bg-stone-100" />
-            </label>
-            <Button type="submit" disabled={!isSupabaseConfigured || !email.trim()} isLoading={loading === 'email'} loadingLabel="Sending link" className="w-full">Email me a sign-in link</Button>
-          </form>
-
-          {message && <div className="mt-5 flex gap-2 rounded-xl bg-teal-50 p-3 text-sm text-teal-800"><CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" />{message}</div>}
-          {error && <div className="mt-5 rounded-xl bg-red-50 p-3 text-sm text-red-700"><ErrorMessage message={error} /></div>}
-        </section>
-      </div>
+        </div>
+      </section>
     </div>
   );
 };

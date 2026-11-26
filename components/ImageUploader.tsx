@@ -1,57 +1,85 @@
-import React, { useRef } from 'react';
-import { Plus, Image as ImageIcon } from 'lucide-react';
+import { useRef, useState } from 'react';
+import { ImagePlus, Plus } from 'lucide-react';
 
 interface ImageUploaderProps {
-  onImageSelected: (base64: string) => void;
+  onImageSelected: (base64: string) => void | Promise<void>;
   compact?: boolean;
+  disabled?: boolean;
   label?: string;
 }
 
-export const ImageUploader: React.FC<ImageUploaderProps> = ({ onImageSelected, compact = false, label = 'Upload image' }) => {
-  const fileInputRef = useRef<HTMLInputElement>(null);
+export function ImageUploader({ onImageSelected, compact = false, disabled = false, label = 'Upload image' }: ImageUploaderProps) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const dragDepth = useRef(0);
+  const reading = useRef(false);
+  const [dragging, setDragging] = useState(false);
+  const [error, setError] = useState('');
 
-  const processFile = (file: File) => {
-    if (file && file.type.startsWith('image/')) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        const base64String = reader.result as string;
-        const base64Data = base64String.split(',')[1];
-        onImageSelected(base64Data);
-      };
-      reader.readAsDataURL(file);
+  const processFile = (file?: File) => {
+    if (!file || disabled || reading.current) return;
+    if (file.size === 0 || !file.type.startsWith('image/')) {
+      setError('Choose an image file.');
+      return;
     }
+
+    setError('');
+    reading.current = true;
+    const reader = new FileReader();
+    reader.onload = () => {
+      const base64 = typeof reader.result === 'string' ? reader.result.split(',')[1] : '';
+      if (base64) void onImageSelected(base64);
+      else setError('This image could not be opened. Try another file.');
+    };
+    reader.onerror = () => setError('This image could not be opened. Try another file.');
+    reader.onloadend = () => { reading.current = false; };
+    reader.readAsDataURL(file);
   };
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    e.preventDefault();
-    if (e.target.files && e.target.files[0]) {
-      processFile(e.target.files[0]);
-    }
-  };
-
-  if (compact) {
-    return (
-      <button 
-        type="button"
-        onClick={() => fileInputRef.current?.click()}
-        className="group flex h-32 w-full flex-col items-center justify-center rounded-3xl border-2 border-dashed border-stone-300 bg-white text-stone-700 transition-all hover:border-teal-600 hover:bg-teal-50 hover:text-teal-800 focus:outline-none focus:ring-4 focus:ring-teal-100 md:h-40"
-      >
-        <span className="mb-3 grid h-10 w-10 place-items-center rounded-full bg-stone-900 text-white transition group-hover:bg-teal-700"><Plus className="h-5 w-5" /></span>
-        <span className="px-3 text-center text-xs font-semibold">{label}</span>
-        <input ref={fileInputRef} type="file" className="hidden" accept="image/*" onChange={handleChange} />
-      </button>
-    );
-  }
+  const Icon = compact ? Plus : ImagePlus;
 
   return (
-    <button
-      type="button"
-      onClick={() => fileInputRef.current?.click()}
-      className="group flex h-48 w-full cursor-pointer flex-col items-center justify-center rounded-3xl border-2 border-dashed border-stone-300 bg-white text-stone-700 transition-all hover:border-teal-600 hover:bg-teal-50 hover:text-teal-800 focus:outline-none focus:ring-4 focus:ring-teal-100"
-    >
-        <span className="mb-3 grid h-12 w-12 place-items-center rounded-2xl bg-stone-900 text-white transition group-hover:bg-teal-700"><ImageIcon className="h-5 w-5" /></span>
-        <span className="px-4 text-center text-sm font-semibold">{label}</span>
-        <input ref={fileInputRef} type="file" className="hidden" accept="image/*" onChange={handleChange} />
-    </button>
+    <div>
+      <button
+        type="button"
+        disabled={disabled}
+        onClick={() => inputRef.current?.click()}
+        onDragEnter={(event) => {
+          event.preventDefault();
+          dragDepth.current += 1;
+          if (!disabled) setDragging(true);
+        }}
+        onDragOver={(event) => event.preventDefault()}
+        onDragLeave={(event) => {
+          event.preventDefault();
+          dragDepth.current -= 1;
+          if (dragDepth.current <= 0) setDragging(false);
+        }}
+        onDrop={(event) => {
+          event.preventDefault();
+          dragDepth.current = 0;
+          setDragging(false);
+          processFile(event.dataTransfer.files[0]);
+        }}
+        className={'flex w-full flex-col items-center justify-center gap-1.5 rounded-lg border border-dashed px-3 py-4 text-center transition-colors disabled:opacity-50 ' +
+          (compact ? 'min-h-24 ' : 'min-h-36 ') +
+          (dragging ? 'border-plum-600 bg-plum-100 text-plum-900' : 'border-plum-400 bg-white text-plum-800 enabled:hover:border-plum-700 enabled:hover:bg-plum-50')}
+      >
+        <Icon className={compact ? 'size-5' : 'mb-1 size-7'} strokeWidth={1.5} aria-hidden="true" />
+        <span className="text-sm font-semibold">{label}</span>
+        {!compact && <span className="text-xs text-stone-600">Drag and drop or choose a file</span>}
+      </button>
+      <input
+        ref={inputRef}
+        type="file"
+        hidden
+        disabled={disabled}
+        accept="image/*"
+        onChange={(event) => {
+          processFile(event.target.files?.[0]);
+          event.target.value = '';
+        }}
+      />
+      {error && <p role="alert" className="mt-2 text-sm text-red-800">{error}</p>}
+    </div>
   );
-};
+}

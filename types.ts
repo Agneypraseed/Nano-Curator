@@ -13,7 +13,9 @@ export type DressCodePreference =
 
 export type WeatherMode = 'auto' | 'manual';
 
-export type AIProvider = 'gemini' | 'openai' | 'openrouter' | 'local';
+export type AIProvider = 'gemini' | 'openai' | 'openrouter' | 'meta' | 'local';
+export type WardrobeExtractor = 'provider' | 'meta-sam';
+export type WardrobeSearchMethod = 'meta' | 'lens';
 
 export type WardrobeCategory = 'tops' | 'bottoms' | 'outerwear' | 'dresses' | 'shoes' | 'accessories' | 'other';
 
@@ -24,6 +26,9 @@ export interface WardrobeItem {
   image: string;
   sourceImage?: string;
   cutoutReady?: boolean;
+  extractor?: 'meta-sam';
+  description?: string;
+  searchQuery?: string;
   createdAt: string;
   provider: AIProvider | 'legacy';
 }
@@ -62,6 +67,7 @@ export interface ShoppingItem {
   priceNote?: string;
   reason?: string;
   alternatives?: ShoppingAlternative[];
+  thumbnail?: string;
 }
 
 export interface StyleOption {

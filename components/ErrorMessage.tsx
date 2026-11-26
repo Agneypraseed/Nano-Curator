@@ -21,7 +21,7 @@ export const ErrorMessage: React.FC<ErrorMessageProps> = ({ message, className =
 
   return (
     <div className={`flex items-start justify-between gap-3 ${className}`}>
-      <p className="min-w-0 whitespace-pre-wrap">{message}</p>
+      <p className="min-w-0 break-words whitespace-pre-wrap" role="alert">{message}</p>
       <button
         type="button"
         onClick={() => void copyError()}

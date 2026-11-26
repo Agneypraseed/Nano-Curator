@@ -1,3 +1,4 @@
+import { imageDataUrl as dataUrl, imageParts } from './images.mjs';
 import { extractJson, fetchWeatherContext, formatWeatherContext, normalizeAnalysis, normalizeStyleOption } from './gemini.mjs';
 
 const IMAGE_MODEL = 'gpt-image-2';
@@ -23,12 +24,9 @@ const apiError = async (response) => {
   }
 };
 
-const dataUrl = (base64) => base64.startsWith('data:') ? base64 : 'data:image/jpeg;base64,' + base64;
 
 const imageUpload = (image) => {
-  const match = String(image).match(/^data:([^;]+);base64,(.*)$/s);
-  const mimeType = match?.[1] || 'image/jpeg';
-  const base64 = match?.[2] || image;
+  const { data: base64, mimeType } = imageParts(image);
   const extension = mimeType.includes('png') ? 'png' : mimeType.includes('webp') ? 'webp' : 'jpg';
   return { blob: new Blob([Buffer.from(base64, 'base64')], { type: mimeType }), filename: 'outfit.' + extension };
 };

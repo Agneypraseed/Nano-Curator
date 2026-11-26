@@ -1,4 +1,4 @@
-import { LookTransformResult, ShoppingItem, StyleAnalysis, StyleOption, WardrobeItem, WizardState } from '../types';
+import { LookTransformResult, ShoppingItem, StyleAnalysis, StyleOption, WardrobeExtractor, WardrobeItem, WardrobeSearchMethod, WizardState } from '../types';
 
 interface SessionPayload {
   analysis: StyleAnalysis;
@@ -16,6 +16,8 @@ export interface ProviderStatus {
   gemini: boolean;
   openai: boolean;
   openrouter: boolean;
+  meta: boolean;
+  visualSearch: boolean;
 }
 
 export const sanitizeErrorMessage = (message: string, status: number) => {
@@ -102,5 +104,17 @@ export const transformLook = (
 export const visualSearch = (image: string) =>
   postJson<{ shoppingItems: ShoppingItem[] }>('/api/visual-search', { image });
 
-export const extractWardrobeItems = (image: string, wizardData: WizardState, credentials: ProviderCredentials) =>
-  postJson<{ items: Array<Pick<WardrobeItem, 'label' | 'category' | 'image' | 'cutoutReady'>> }>('/api/extract-wardrobe-items', { image, wizardData, credentials });
+export const extractWardrobeItems = (
+  image: string,
+  wizardData: WizardState,
+  credentials: ProviderCredentials,
+  options: { extractor: WardrobeExtractor; targetGarment?: string; metaApiKey?: string },
+) =>
+  postJson<{
+    items: Omit<WardrobeItem, 'id' | 'sourceImage' | 'createdAt' | 'provider'>[];
+    sourceImage?: string;
+    skippedCount?: number;
+  }>('/api/extract-wardrobe-items', { image, wizardData, credentials, ...options });
+
+export const findWardrobeMatches = (query: string, image: string | undefined, method: WardrobeSearchMethod, metaApiKey?: string) =>
+  postJson<{ shoppingItems: ShoppingItem[] }>('/api/find-wardrobe-matches', { query, image, method, metaApiKey });

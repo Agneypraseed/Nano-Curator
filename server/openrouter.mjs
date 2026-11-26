@@ -1,6 +1,6 @@
+import { imageDataUrl as dataUrl } from './images.mjs';
 import { extractJson, fetchWeatherContext, formatWeatherContext, normalizeAnalysis, normalizeStyleOption } from './gemini.mjs';
 
-const dataUrl = (base64) => base64.startsWith('data:') ? base64 : 'data:image/jpeg;base64,' + base64;
 const retryable = (status) => status === 408 || status === 429 || status >= 500;
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 

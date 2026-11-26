@@ -11,27 +11,30 @@ const Button: React.FC<ButtonProps> = ({
   variant = 'primary', 
   isLoading, 
   loadingLabel = 'Processing',
-  className = '', 
+  className = '',
+  type = 'button',
   disabled,
   ...props 
 }) => {
-  const baseStyles = "inline-flex min-h-11 items-center justify-center gap-2 border px-6 py-3 text-base font-semibold rounded-2xl focus:outline-none focus:ring-2 focus:ring-offset-2 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed";
+  const baseStyles = "inline-flex min-h-11 items-center justify-center gap-2 rounded-md border px-4 py-2 text-sm font-semibold leading-tight transition-colors disabled:opacity-50 disabled:cursor-not-allowed";
   
   const variants = {
-    primary: "border-teal-700 text-white bg-teal-700 hover:border-teal-800 hover:bg-teal-800 focus:ring-teal-600 shadow-[0_10px_24px_-12px_rgba(15,118,110,0.85)] hover:shadow-[0_14px_28px_-12px_rgba(15,118,110,0.9)]",
-    secondary: "border-stone-200 text-stone-900 bg-white hover:border-stone-300 hover:bg-stone-50 focus:ring-stone-300 shadow-sm",
-    outline: "border-stone-300 text-stone-800 bg-white hover:border-teal-600 hover:bg-teal-50 hover:text-teal-900 focus:ring-teal-500 shadow-sm"
+    primary: "border-plum-700 bg-plum-700 text-white hover:border-plum-800 hover:bg-plum-800",
+    secondary: "border-stone-300 bg-white text-stone-950 hover:bg-stone-100",
+    outline: "border-plum-600 bg-transparent text-plum-700 hover:bg-plum-50 hover:text-plum-900"
   };
 
   return (
     <button
+      type={type}
       className={`${baseStyles} ${variants[variant]} ${className}`}
       disabled={isLoading || disabled}
+      aria-busy={isLoading || undefined}
       {...props}
     >
       {isLoading ? (
         <>
-          <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-current" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+          <svg aria-hidden="true" className="size-4 shrink-0 animate-spin text-current" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
             <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
             <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
           </svg>
