@@ -48,6 +48,10 @@ Choose **Meta SAM 3.1** as the extraction method and upload an outfit photo. To 
 
 **Enhance previews with Muse Image** saves a sharper catalog preview alongside each SAM cutout. The cutout appears first while the image edit runs. Use **Show SAM cutout** to compare it with the enhanced preview, or **Enhance preview** on a SAM piece saved before this option was added. Product search uses the original cutout.
 
+<img src="./docs/screenshots/wardrobe-sweater-sam-muse.jpg"
+     alt="Yellow knit sweater with the original SAM cutout on the left and the enhanced Muse Image preview on the right"
+     width="460">
+
 Use **Find similar** on a piece to search from its cutout and an editable description. Meta search works with the same key and returns grounded retailer links when available. The **Google Shopping** link uses the description alone. For direct Google Lens reverse-image search, configure both `IMGBB_API_KEY` and `SERPAPI_API_KEY`. Lens uses a publicly hosted copy of the cutout. Check retailer pages for current prices and availability.
 
 In style collection results, **Shop this look → Find real products** uses the same Meta key to search from the look preview and its description. If no Meta key is configured, the button uses Google Lens when both Lens credentials are set.
