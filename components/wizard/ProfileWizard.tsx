@@ -138,7 +138,7 @@ export function ProfileWizard({
                           })}
                           className="relative overflow-hidden rounded-md border border-stone-300 bg-stone-50 text-left hover:border-plum-600 aria-pressed:border-plum-700 aria-pressed:ring-1 aria-pressed:ring-plum-700"
                         >
-                          <img src={imageSource(item.image)} alt="" loading="lazy" className="aspect-square w-full object-contain p-2" />
+                          <img src={imageSource(item.enhancedImage || item.image)} alt="" loading="lazy" className="aspect-square w-full object-contain p-2" />
                           {selected && <Check className="absolute top-2 right-2 size-5 rounded-sm bg-plum-700 p-0.5 text-white" aria-hidden="true" />}
                           <span className="block border-t border-stone-200 p-2 text-xs font-semibold break-words">{item.label}</span>
                         </button>

@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react';
 import { ArrowRight, Check, ChevronDown, Layers3, LoaderCircle, Search, Sparkles, Trash2 } from 'lucide-react';
-import type { AIProvider, ShoppingItem, WardrobeCategory, WardrobeExtractor, WardrobeItem, WardrobeSearchMethod } from '../../types';
+import type { AIProvider, ShoppingItem, WardrobeCategory, WardrobeEnhancement, WardrobeExtractor, WardrobeItem, WardrobeSearchMethod } from '../../types';
 import { imageSource } from '../../utils/imageSource';
 import { providerLabels } from '../../utils/providers';
 import Button from '../Button';
@@ -16,7 +16,9 @@ interface WardrobePageProps {
   isProviderConfigured: boolean;
   canUseMetaSam: boolean;
   canUseLens: boolean;
-  onAddWardrobeItem: (base64: string, extractor: WardrobeExtractor, targetGarment: string) => Promise<{ items: WardrobeItem[]; saved: boolean; skippedCount?: number }>;
+  onAddWardrobeItem: (base64: string, extractor: WardrobeExtractor, targetGarment: string, enhancePreviews: boolean) => Promise<{ items: WardrobeItem[]; saved: boolean; skippedCount?: number }>;
+  onEnhanceWardrobeItem: (itemId: string) => void;
+  enhancements: Record<string, WardrobeEnhancement | undefined>;
   onRemoveWardrobeItem: (itemId: string) => boolean;
   onPlanSuggestion: (selectedPhotos: string[]) => void;
   onOpenModelSettings: () => void;
@@ -42,16 +44,22 @@ const examplePieces = [
   { image: '/examples/wardrobe/extracted-piece-3.png', label: 'Long-sleeve polo' },
 ];
 
-function WardrobePiece({ item, selected, onSelect, onRemove, onSearch }: {
+function WardrobePiece({ item, selected, enhancement, onSelect, onRemove, onSearch, onEnhance }: {
   item: WardrobeItem;
   selected: boolean;
+  enhancement?: WardrobeEnhancement;
   onSelect: () => void;
   onRemove: () => void;
   onSearch: () => void;
+  onEnhance?: () => void;
 }) {
-  const [showSource, setShowSource] = useState(false);
+  const [view, setView] = useState<'preview' | 'source' | 'cutout'>('preview');
   const hasCutout = Boolean(item.sourceImage && item.cutoutReady !== false && item.image !== item.sourceImage);
-  const useSource = hasCutout && showSource;
+  const useSource = hasCutout && view === 'source';
+  const useEnhanced = view === 'preview' && Boolean(item.enhancedImage);
+  let previewImage = item.image;
+  if (useSource && item.sourceImage) previewImage = item.sourceImage;
+  if (useEnhanced && item.enhancedImage) previewImage = item.enhancedImage;
 
   return (
     <article className={'relative min-w-0 overflow-hidden rounded-lg border bg-white ' +
@@ -59,7 +67,7 @@ function WardrobePiece({ item, selected, onSelect, onRemove, onSearch }: {
       <button type="button" aria-pressed={selected} aria-label={'Select ' + item.label} onClick={onSelect} className="block w-full rounded-lg text-left focus-visible:-outline-offset-4">
         <div className="relative aspect-[5/4] overflow-hidden bg-stone-100">
           <img
-            src={imageSource(useSource ? item.sourceImage! : item.image)}
+            src={imageSource(previewImage)}
             alt={useSource ? 'Source outfit for ' + item.label : item.label}
             loading="lazy"
             className={'h-full w-full ' + (useSource ? 'object-cover' : 'object-contain p-2.5')}
@@ -72,7 +80,10 @@ function WardrobePiece({ item, selected, onSelect, onRemove, onSearch }: {
         <div className="border-t border-stone-200 px-2.5 py-2">
           <p className="break-words text-sm font-semibold">{item.label}</p>
           <p className="mt-0.5 text-xs capitalize text-stone-600">
-            {item.category}{item.extractor === 'meta-sam' && ' · SAM cutout'}{item.cutoutReady === false && ' · Cutout pending'}
+            {item.category}
+            {useEnhanced && ' · Muse Image preview'}
+            {item.extractor === 'meta-sam' && !useEnhanced && !useSource && ' · SAM cutout'}
+            {item.cutoutReady === false && ' · Cutout pending'}
           </p>
         </div>
       </button>
@@ -81,20 +92,33 @@ function WardrobePiece({ item, selected, onSelect, onRemove, onSearch }: {
       </button>
       <div className="flex flex-wrap justify-between border-t border-stone-200">
         {hasCutout && (
-          <button type="button" aria-pressed={showSource} onClick={() => setShowSource((visible) => !visible)} className="min-h-11 px-2.5 text-left text-xs font-semibold text-plum-700 hover:bg-plum-50">
+          <button type="button" aria-pressed={useSource} onClick={() => setView(useSource ? 'preview' : 'source')} className="min-h-11 px-2.5 text-left text-xs font-semibold text-plum-700 hover:bg-plum-50">
             Show source outfit
+          </button>
+        )}
+        {item.enhancedImage && (
+          <button type="button" onClick={() => setView(view === 'cutout' ? 'preview' : 'cutout')} className="min-h-11 px-2.5 text-left text-xs font-semibold text-plum-700 hover:bg-plum-50">
+            {view === 'cutout' ? 'Show enhanced preview' : 'Show SAM cutout'}
           </button>
         )}
         <button type="button" onClick={onSearch} aria-label={'Find similar to ' + item.label} className="inline-flex min-h-11 items-center gap-1.5 px-2.5 text-xs font-semibold text-plum-700 hover:bg-plum-50">
           <Search className="size-3.5" aria-hidden="true" /> Find similar
         </button>
       </div>
+      {onEnhance && (
+        <div className="border-t border-stone-200 p-2.5">
+          <Button variant="outline" onClick={onEnhance} isLoading={enhancement?.pending} loadingLabel="Enhancing preview" className="w-full">
+            <Sparkles className="size-3.5" aria-hidden="true" /> {enhancement?.pending === false ? 'Retry enhancement' : 'Enhance preview'}
+          </Button>
+          {enhancement?.pending === false && <p role="alert" className="mt-2 break-words text-xs text-red-800">{enhancement.error}</p>}
+        </div>
+      )}
     </article>
   );
 }
 
 export function WardrobePage({
-  wardrobeLibrary, provider, model, isProviderConfigured, canUseMetaSam, canUseLens, onAddWardrobeItem,
+  wardrobeLibrary, provider, model, isProviderConfigured, canUseMetaSam, canUseLens, onAddWardrobeItem, onEnhanceWardrobeItem, enhancements,
   onRemoveWardrobeItem, onPlanSuggestion, onOpenModelSettings, onSearch,
 }: WardrobePageProps) {
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -107,6 +131,7 @@ export function WardrobePage({
   const [error, setError] = useState<string | null>(null);
   const [extractionChoice, setExtractionChoice] = useState<WardrobeExtractor | null>(null);
   const [targetGarment, setTargetGarment] = useState('');
+  const [enhancePreviews, setEnhancePreviews] = useState(true);
   const [searchItem, setSearchItem] = useState<WardrobeItem | null>(null);
   const extracting = useRef(false);
 
@@ -124,7 +149,7 @@ export function WardrobePage({
     setSkippedCount(0);
     setError(null);
     try {
-      const { items, saved, skippedCount } = await onAddWardrobeItem(base64, extractor, targetGarment);
+      const { items, saved, skippedCount } = await onAddWardrobeItem(base64, extractor, targetGarment, extractor === 'meta-sam' && enhancePreviews);
       setSelectedIds((current) => Array.from(new Set([...current, ...items.map((item) => item.id)])));
       setLastImportCount(items.length);
       setSkippedCount(skippedCount || 0);
@@ -156,11 +181,20 @@ export function WardrobePage({
             </div>
           )}
           {extractor === 'meta-sam' && (
-            <label className="mb-4 grid gap-1.5 text-sm font-semibold">
-              Garment to isolate
-              <input className="studio-field" value={targetGarment} maxLength={110} disabled={isExtracting} onChange={(event) => setTargetGarment(event.target.value)} placeholder="e.g. dress or blazer" />
-              <span className="text-xs font-normal text-stone-600">Leave blank to isolate visible pieces. Photos are sent to Meta for extraction.</span>
-            </label>
+            <>
+              <label className="mb-4 grid gap-1.5 text-sm font-semibold">
+                Garment to isolate
+                <input className="studio-field" value={targetGarment} maxLength={110} disabled={isExtracting} onChange={(event) => setTargetGarment(event.target.value)} placeholder="e.g. dress or blazer" />
+                <span className="text-xs font-normal text-stone-600">Leave blank to isolate visible pieces. Photos are sent to Meta for extraction.</span>
+              </label>
+              <label className="mb-4 flex items-start gap-2.5 text-sm font-semibold">
+                <input type="checkbox" checked={enhancePreviews} onChange={(event) => setEnhancePreviews(event.target.checked)} disabled={isExtracting} className="mt-0.5 size-4 shrink-0 accent-plum-700" />
+                <span>
+                  Enhance previews with Muse Image
+                  <span className="mt-1 block text-xs font-normal text-stone-600">Adds a sharper catalog preview using one image edit per piece.</span>
+                </span>
+              </label>
+            </>
           )}
           {sourcePreview && (
             <img src={imageSource(sourcePreview)} alt="Uploaded outfit" className="mb-4 aspect-[4/3] max-h-80 w-full rounded-lg bg-stone-100 object-contain" />
@@ -219,6 +253,8 @@ export function WardrobePage({
                   key={item.id}
                   item={item}
                   selected={selectedIds.includes(item.id)}
+                  enhancement={enhancements[item.id]}
+                  onEnhance={canUseMetaSam && item.extractor === 'meta-sam' && !item.enhancedImage ? () => onEnhanceWardrobeItem(item.id) : undefined}
                   onSelect={() => setSelectedIds((current) => current.includes(item.id) ? current.filter((id) => id !== item.id) : [...current, item.id])}
                   onRemove={() => {
                     setStorageError(!onRemoveWardrobeItem(item.id));

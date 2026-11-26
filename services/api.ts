@@ -118,3 +118,6 @@ export const extractWardrobeItems = (
 
 export const findWardrobeMatches = (query: string, image: string | undefined, method: WardrobeSearchMethod, metaApiKey?: string) =>
   postJson<{ shoppingItems: ShoppingItem[] }>('/api/find-wardrobe-matches', { query, image, method, metaApiKey });
+
+export const enhanceWardrobeItem = ({ image, sourceImage, sourceBounds, description, label }: WardrobeItem, metaApiKey?: string) =>
+  postJson<{ image: string }>('/api/enhance-wardrobe-item', { image, sourceImage, sourceBounds, description: description || label, metaApiKey });

@@ -8,10 +8,10 @@ import { ResultsPage } from './components/results/ResultsPage';
 import { ProfileWizard } from './components/wizard/ProfileWizard';
 import { WardrobePage } from './components/wardrobe/WardrobePage';
 import { ModelSettingsPage } from './components/models/ModelSettingsPage';
-import { extractWardrobeItems, findWardrobeMatches, generateStyleSession, getProviderStatus, regenerateStyleImage, sanitizeErrorMessage, transformLook, visualSearch, type ProviderStatus } from './services/api';
+import { enhanceWardrobeItem, extractWardrobeItems, findWardrobeMatches, generateStyleSession, getProviderStatus, regenerateStyleImage, sanitizeErrorMessage, transformLook, visualSearch, type ProviderStatus } from './services/api';
 import { loadSessionHistory, removeSessionHistoryItem, upsertSessionHistory, loadWardrobeLibrary, saveWardrobeLibrary } from './utils/sessionHistory';
 import { loadUserProfile, saveUserProfile } from './utils/userProfile';
-import { AIProvider, AppStage, ReferenceTab, SessionRecord, StyleAnalysis, StyleOption, UserProfile, WardrobeExtractor, WardrobeItem, WardrobeSearchMethod, WizardState } from './types';
+import { AIProvider, AppStage, ReferenceTab, SessionRecord, StyleAnalysis, StyleOption, UserProfile, WardrobeEnhancement, WardrobeExtractor, WardrobeItem, WardrobeSearchMethod, WizardState } from './types';
 import { providerLabels } from './utils/providers';
 
 const AuthPage = lazy(() => import('./components/auth/AuthPage').then((module) => ({ default: module.AuthPage })));
@@ -84,6 +84,9 @@ export default function App() {
 
   const [wardrobeLibrary, setWardrobeLibrary] = useState<WardrobeItem[]>([]);
   const wardrobeRef = useRef<WardrobeItem[]>([]);
+  const [wardrobeEnhancements, setWardrobeEnhancements] = useState<Record<string, WardrobeEnhancement | undefined>>({});
+  const wardrobeEnhancementQueue = useRef<Promise<void>>(Promise.resolve());
+  const queuedWardrobeEnhancements = useRef(new Set<string>());
   const [apiKeys, setApiKeys] = useState<Partial<Record<Exclude<AIProvider, 'local'>, string>>>({});
   const [providerStatus, setProviderStatus] = useState<ProviderStatus>({
     gemini: false, openai: false, openrouter: false, meta: false, visualSearch: false,
@@ -218,13 +221,51 @@ export default function App() {
     }));
   };
 
-  const updateWardrobe = (items: WardrobeItem[]) => {
-    wardrobeRef.current = items;
-    setWardrobeLibrary(items);
-    return saveWardrobeLibrary(items);
+  const updateWardrobe = (items: WardrobeItem[], allowUnsaved = true) => {
+    const saved = saveWardrobeLibrary(items);
+    if (saved || allowUnsaved) {
+      wardrobeRef.current = items;
+      setWardrobeLibrary(items);
+    }
+    return saved;
   };
 
-  const handleAddWardrobeItem = async (base64: string, extractor: WardrobeExtractor, targetGarment: string) => {
+  const handleEnhanceWardrobeItem = (itemId: string) => {
+    if (!canUseMetaSam || queuedWardrobeEnhancements.current.has(itemId)) return;
+
+    const metaKey = apiKeys.meta?.trim();
+    queuedWardrobeEnhancements.current.add(itemId);
+    setWardrobeEnhancements((current) => ({ ...current, [itemId]: { pending: true } }));
+    wardrobeEnhancementQueue.current = wardrobeEnhancementQueue.current.then(async () => {
+      let failure = '';
+      try {
+        const item = wardrobeRef.current.find((candidate) => candidate.id === itemId);
+        if (!item || item.extractor !== 'meta-sam' || item.enhancedImage) return;
+
+        const result = await enhanceWardrobeItem(item, metaKey);
+        const currentItems = wardrobeRef.current;
+        if (!currentItems.some((candidate) => candidate.id === itemId)) return;
+        const updated = currentItems.map((candidate) =>
+          candidate.id === itemId ? { ...candidate, enhancedImage: result.image } : candidate,
+        );
+        if (!updateWardrobe(updated, false)) {
+          failure = 'Browser storage is full. Free some space to save an enhanced preview.';
+        }
+      } catch (err) {
+        failure = err instanceof Error ? sanitizeErrorMessage(err.message, 500) : 'Muse Image could not enhance this preview. Try again.';
+      } finally {
+        queuedWardrobeEnhancements.current.delete(itemId);
+        setWardrobeEnhancements((current) => {
+          const next = { ...current };
+          if (failure && wardrobeRef.current.some((item) => item.id === itemId)) next[itemId] = { pending: false, error: failure };
+          else delete next[itemId];
+          return next;
+        });
+      }
+    });
+  };
+
+  const handleAddWardrobeItem = async (base64: string, extractor: WardrobeExtractor, targetGarment: string, enhancePreviews: boolean) => {
     const { items, sourceImage, skippedCount } = await extractWardrobeItems(base64, wizardData, credentials, {
       extractor,
       targetGarment,
@@ -249,7 +290,13 @@ export default function App() {
       });
     }
 
-    return { items: newItems, skippedCount, saved: newItems.length === 0 || updateWardrobe([...currentItems, ...newItems]) };
+    const saved = newItems.length === 0 || updateWardrobe([...currentItems, ...newItems]);
+    if (saved && enhancePreviews) {
+      for (const item of newItems) {
+        if (item.extractor === 'meta-sam') handleEnhanceWardrobeItem(item.id);
+      }
+    }
+    return { items: newItems, skippedCount, saved };
   };
 
   const handleSearchWardrobe = async (method: WardrobeSearchMethod, query: string, image?: string) => {
@@ -711,6 +758,8 @@ export default function App() {
             provider={wizardData.backend}
             model={wizardData.model}
             onAddWardrobeItem={handleAddWardrobeItem}
+            onEnhanceWardrobeItem={handleEnhanceWardrobeItem}
+            enhancements={wardrobeEnhancements}
             onRemoveWardrobeItem={handleRemoveWardrobeItem}
             onPlanSuggestion={handlePlanSuggestionFromWardrobe}
             isProviderConfigured={isActiveProviderConfigured}

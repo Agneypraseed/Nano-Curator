@@ -19,12 +19,23 @@ export type WardrobeSearchMethod = 'meta' | 'lens';
 
 export type WardrobeCategory = 'tops' | 'bottoms' | 'outerwear' | 'dresses' | 'shoes' | 'accessories' | 'other';
 
+export interface WardrobeSourceBounds {
+  left: number;
+  top: number;
+  right: number;
+  bottom: number;
+}
+
+export type WardrobeEnhancement = { pending: true } | { pending: false; error: string };
+
 export interface WardrobeItem {
   id: string;
   label: string;
   category: WardrobeCategory;
   image: string;
+  enhancedImage?: string;
   sourceImage?: string;
+  sourceBounds?: WardrobeSourceBounds;
   cutoutReady?: boolean;
   extractor?: 'meta-sam';
   description?: string;

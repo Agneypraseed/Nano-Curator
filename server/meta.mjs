@@ -1,6 +1,6 @@
 import sharp from 'sharp';
 import { createSamExtractor } from './meta-sam.mjs';
-import { imageDataUrl } from './images.mjs';
+import { imageDataUrl, imageParts } from './images.mjs';
 import { extractJson, fetchWeatherContext, formatWeatherContext, normalizeAnalysis, normalizeStyleOption } from './gemini.mjs';
 
 export const DEFAULT_META_MODEL = 'muse-spark-1.3';
@@ -36,6 +36,29 @@ function cleanProductUrl(value) {
 function productText(value, fallback, limit) {
   return String(value || fallback).replace(/\s*【\d+†[^】]+】/g, '')
     .replace(/\s+/g, ' ').trim().slice(0, limit);
+}
+
+async function cropGarmentReference(sourceImage, bounds) {
+  if (!sourceImage || !bounds) return null;
+  const coordinates = [bounds.left, bounds.top, bounds.right, bounds.bottom];
+  if (coordinates.some((value) => !Number.isFinite(value) || value < 0 || value > 1)) return null;
+  if (bounds.right <= bounds.left || bounds.bottom <= bounds.top) return null;
+
+  try {
+    const photo = sharp(Buffer.from(imageParts(sourceImage).data, 'base64'), { limitInputPixels: 12_000_000 });
+    const { width, height } = await photo.metadata();
+    const left = Math.floor(bounds.left * width);
+    const top = Math.floor(bounds.top * height);
+    const crop = await photo.extract({
+      left,
+      top,
+      width: Math.ceil(bounds.right * width) - left,
+      height: Math.ceil(bounds.bottom * height) - top,
+    }).jpeg({ quality: 86 }).toBuffer();
+    return crop.toString('base64');
+  } catch {
+    return null;
+  }
 }
 
 export function createMetaService(apiKey, model = DEFAULT_META_MODEL) {
@@ -143,20 +166,46 @@ export function createMetaService(apiKey, model = DEFAULT_META_MODEL) {
     return normalizeAnalysis(extractJson(responseText(response)), data.findOutfits, weather);
   }
 
+  async function renderMuseImage(content, { width, height, quality, tools }) {
+    const response = await request({ model: META_IMAGE_MODEL, input: message(content), tools });
+    const image = (response.output || []).find((item) => item.type === 'image_generation_call')?.result;
+    if (!image) throw new Error('Muse Image did not return a preview.');
+    const bytes = await sharp(Buffer.from(image, 'base64'))
+      .resize({ width, height, fit: 'inside', withoutEnlargement: true })
+      .webp({ quality })
+      .toBuffer();
+    return imageDataUrl(bytes.toString('base64'));
+  }
+
+  async function enhanceGarmentPreview({ image, sourceImage, sourceBounds, description }) {
+    const raw = Buffer.from(imageParts(image).data, 'base64');
+    const { width, height } = await sharp(raw, { limitInputPixels: 12_000_000 }).metadata();
+    const reference = sourceBounds ? await cropGarmentReference(sourceImage, sourceBounds) : sourceImage;
+    const content = [asImage(image)];
+    if (reference) content.push(asImage(reference));
+    content.push(asText([
+      'Create a clean high-resolution product photograph of the exact garment in the first image, a SAM cutout.',
+      reference && 'The second image shows the garment in its source photo. Use it to restore visibly photographed fabric lost around the cutout edges. Remove the wearer and all other garments.',
+      'Keep the garment shape, proportions, colors, pattern, fabric texture, visible construction and markings from the references. Repair ragged mask edges and improve sharpness. Do not invent logos, wording, fasteners, pockets or hidden detail.',
+      'Center the entire garment with margins on a plain warm off-white catalog background. No person, mannequin, props, caption, redesign, color shifts or decorative shadows.',
+      description && 'Garment details: ' + JSON.stringify(description),
+    ].filter(Boolean).join('\n')));
+    const size = height > width * 1.2 ? '1024x1536' : width > height * 1.2 ? '1536x1024' : '1024x1024';
+    return renderMuseImage(content, {
+      width: 1200,
+      height: 1200,
+      quality: 84,
+      tools: [{ type: 'image_generation', size, enable_web_search: false, enable_shell: false, reasoning_strength: 'low' }],
+    });
+  }
+
   async function generateSingleImage(identityImage, garmentImage, visualPrompt, isHaircut = false) {
     const subject = isHaircut ? 'a head-and-shoulders hairstyle portrait' : 'a full-body editorial outfit portrait';
     const content = [asImage(identityImage)];
     if (garmentImage && !isHaircut) content.push(asImage(garmentImage));
     content.push(asText('Create ' + subject + ' preserving the person’s identity and body proportions from the first photo. ' +
       (garmentImage && !isHaircut ? 'Use the exact target garment in the second image. ' : '') + visualPrompt));
-    const response = await request({ model: META_IMAGE_MODEL, input: message(content) });
-    const image = (response.output || []).find((item) => item.type === 'image_generation_call')?.result;
-    if (!image) throw new Error('Muse Image did not return a preview.');
-    const bytes = await sharp(Buffer.from(image, 'base64'))
-      .resize({ width: 1152, height: 1400, fit: 'inside', withoutEnlargement: true })
-      .webp({ quality: 83 })
-      .toBuffer();
-    return imageDataUrl(bytes.toString('base64'));
+    return renderMuseImage(content, { width: 1152, height: 1400, quality: 83 });
   }
 
   async function transformLook(wizardData, identityImage, garmentImage, style, instruction) {
@@ -183,5 +232,5 @@ export function createMetaService(apiKey, model = DEFAULT_META_MODEL) {
     return { analysis, styleImages, haircutImage };
   }
 
-  return { extractWardrobeItems, findGarmentMatches, generateStyleSession, generateSingleImage, transformLook };
+  return { extractWardrobeItems, enhanceGarmentPreview, findGarmentMatches, generateStyleSession, generateSingleImage, transformLook };
 }

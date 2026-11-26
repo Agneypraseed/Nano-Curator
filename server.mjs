@@ -166,6 +166,23 @@ const handleApi = async (req, res) => {
       return true;
     }
 
+    if (req.method === 'POST' && req.url === '/api/enhance-wardrobe-item') {
+      const { image, sourceImage, sourceBounds, description, metaApiKey } = await readJsonBody(req);
+      if (typeof image !== 'string' || !image.trim() || image.length > 3_000_000) {
+        sendJson(res, 400, { error: 'A garment cutout is required to enhance the preview.' });
+        return true;
+      }
+      const key = (typeof metaApiKey === 'string' && metaApiKey.trim()) || configuredKeys.meta;
+      const enhancedImage = await createMetaService(key).enhanceGarmentPreview({
+        image,
+        sourceImage: typeof sourceImage === 'string' && sourceImage.length <= 3_000_000 ? sourceImage : undefined,
+        sourceBounds,
+        description: typeof description === 'string' ? description.trim().slice(0, 400) : '',
+      });
+      sendJson(res, 200, { image: enhancedImage });
+      return true;
+    }
+
     if (req.method === 'POST' && req.url === '/api/transform-look') {
       const { wizardData, identityImage, garmentImage, style, instruction, credentials } = await readJsonBody(req);
       const service = resolveService(wizardData, credentials);

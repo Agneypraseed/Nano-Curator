@@ -49,6 +49,21 @@ function overlap(first, second) {
   return intersection / (area(first) + area(second) - intersection);
 }
 
+function sourceBounds(box, mask, { width, height }) {
+  const left = Math.min(box.left, mask.left);
+  const top = Math.min(box.top, mask.top);
+  const right = Math.max(box.right, mask.right);
+  const bottom = Math.max(box.bottom, mask.bottom);
+  const marginX = (right - left) * 0.06;
+  const marginY = (bottom - top) * 0.06;
+  return {
+    left: Math.max(0, (left - marginX) / width),
+    top: Math.max(0, (top - marginY) / height),
+    right: Math.min(1, (right + marginX) / width),
+    bottom: Math.min(1, (bottom + marginY) / height),
+  };
+}
+
 async function preparePhoto(sourceImage) {
   const bytes = Buffer.from(imageParts(sourceImage).data, 'base64');
   if (!bytes.length || bytes.length > 20 * 1024 * 1024) {
@@ -186,7 +201,7 @@ export function createSamExtractor({ request, model, responseText }) {
       .toBuffer();
     const output = [];
 
-    for (const [index, { item }] of pieces.entries()) {
+    for (const [index, { item, box }] of pieces.entries()) {
       const record = masks.get(index);
       const image = record ? await applyMask(photo, record) : null;
       if (!image) continue;
@@ -196,6 +211,7 @@ export function createSamExtractor({ request, model, responseText }) {
         description: item.description.trim().slice(0, 400),
         searchQuery: item.searchQuery.trim().slice(0, 180),
         image,
+        sourceBounds: sourceBounds(box, record.bounds, photo.info),
         cutoutReady: true,
         extractor: 'meta-sam',
       });
