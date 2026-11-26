@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import { ArrowRight, Check, ChevronDown, Layers3, LoaderCircle, Search, Sparkles, Trash2 } from 'lucide-react';
+import { ArrowRight, Check, ChevronDown, Info, Layers3, LoaderCircle, Search, Sparkles, Trash2 } from 'lucide-react';
 import type { AIProvider, ShoppingItem, WardrobeCategory, WardrobeEnhancement, WardrobeExtractor, WardrobeItem, WardrobeSearchMethod } from '../../types';
 import { imageSource } from '../../utils/imageSource';
 import { providerLabels } from '../../utils/providers';
@@ -131,6 +131,7 @@ export function WardrobePage({
   const [storageError, setStorageError] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [extractionChoice, setExtractionChoice] = useState<WardrobeExtractor | null>(null);
+  const [extractionHelpOpen, setExtractionHelpOpen] = useState(false);
   const [targetGarment, setTargetGarment] = useState('');
   const [enhancePreviews, setEnhancePreviews] = useState(true);
   const [searchItem, setSearchItem] = useState<WardrobeItem | null>(null);
@@ -139,6 +140,8 @@ export function WardrobePage({
   const selectedItems = wardrobeLibrary.filter((item) => selectedIds.includes(item.id));
   const filteredItems = activeFilter === 'all' ? wardrobeLibrary : wardrobeLibrary.filter((item) => item.category === activeFilter);
   const extractor = provider === 'meta' ? 'meta-sam' : extractionChoice || (canUseMetaSam ? 'meta-sam' : 'provider');
+  const canChooseExtractor = provider !== 'meta' && (canUseMetaSam || extractionChoice !== null);
+  const extractionModel = extractor === 'meta-sam' ? 'Meta SAM 3.1' : [providerLabels[provider], provider !== 'local' && model].filter(Boolean).join(' · ');
   const needsSettings = extractor === 'meta-sam' ? !canUseMetaSam : provider === 'local' || !isProviderConfigured;
 
   const handleUploadOutfit = async (base64: string) => {
@@ -172,15 +175,36 @@ export function WardrobePage({
         <section className="studio-panel p-4 sm:p-6" aria-labelledby="wardrobe-import-title">
           <h2 id="wardrobe-import-title" className="section-title text-2xl">{sourcePreview ? 'Source outfit' : 'Import an outfit'}</h2>
           <p className="mt-2 mb-4 text-sm leading-relaxed text-stone-600">Choose a full-body or flat-lay photo where garment edges are visible.</p>
-          {provider !== 'meta' && (canUseMetaSam || extractionChoice) && (
-            <div className="mb-4 grid gap-1.5 text-sm font-semibold">
-              <label htmlFor="wardrobe-extractor">Extraction method</label>
-              <select id="wardrobe-extractor" className="studio-field" value={extractor} disabled={isExtracting} onChange={(event) => setExtractionChoice(event.target.value as WardrobeExtractor)}>
+          <div className="mb-4 grid gap-1.5 text-sm font-semibold">
+            <div className="relative flex items-center gap-1">
+              {canChooseExtractor ? <label htmlFor="wardrobe-extractor">Extraction method</label> : <span>Extraction method</span>}
+              <button
+                type="button"
+                aria-label="About extraction methods"
+                aria-expanded={extractionHelpOpen}
+                aria-controls="wardrobe-extractor-help"
+                className="grid size-9 place-items-center rounded-md text-plum-700 hover:bg-plum-50"
+                onClick={() => setExtractionHelpOpen((open) => !open)}
+                onBlur={() => setExtractionHelpOpen(false)}
+                onKeyDown={(event) => {
+                  if (event.key === 'Escape') setExtractionHelpOpen(false);
+                }}
+              >
+                <Info className="size-4" aria-hidden="true" />
+              </button>
+              <p id="wardrobe-extractor-help" hidden={!extractionHelpOpen} className="absolute inset-x-0 top-full z-10 mt-1 max-w-sm rounded-md border border-stone-300 bg-white p-3 text-xs font-normal leading-relaxed text-stone-700 shadow-lg">
+                Only Meta SAM 3.1 pairs a sharper Muse Image preview with the original SAM cutout. With a Meta API key, you can use it alongside Gemini or OpenAI for styling.
+              </p>
+            </div>
+            {canChooseExtractor ? (
+              <select id="wardrobe-extractor" aria-describedby="wardrobe-extractor-help" className="studio-field" value={extractor} disabled={isExtracting} onChange={(event) => setExtractionChoice(event.target.value as WardrobeExtractor)}>
                 <option value="meta-sam">Meta SAM 3.1</option>
                 <option value="provider">{providerLabels[provider]} model</option>
               </select>
-            </div>
-          )}
+            ) : (
+              <p className="break-words text-xs font-normal text-stone-600">{extractionModel}</p>
+            )}
+          </div>
           {extractor === 'meta-sam' && (
             <>
               <label className="mb-4 grid gap-1.5 text-sm font-semibold">
@@ -208,9 +232,7 @@ export function WardrobePage({
           ) : (
             <ImageUploader onImageSelected={handleUploadOutfit} disabled={isExtracting} label={sourcePreview ? 'Import another outfit' : 'Upload outfit photo'} />
           )}
-          <p className="mt-3 text-xs leading-relaxed break-words text-stone-600">
-            {extractor === 'meta-sam' ? 'Meta SAM 3.1' : [providerLabels[provider], provider !== 'local' && model].filter(Boolean).join(' · ')}
-          </p>
+          {canChooseExtractor && extractor === 'provider' && <p className="mt-3 break-words text-xs leading-relaxed text-stone-600">{extractionModel}</p>}
           {isExtracting && (
             <p role="status" className="mt-3 flex items-center gap-2 text-sm text-plum-800">
               <LoaderCircle className="size-4 shrink-0 animate-spin" aria-hidden="true" /> Finding garments and preparing cutouts…
