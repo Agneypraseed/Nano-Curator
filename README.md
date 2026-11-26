@@ -11,6 +11,12 @@ Nano Curator is an AI-powered personal stylist. It turns your photos, wardrobe, 
 3. **Generate a collection.** Nano Curator creates three distinct looks, highlights the best fit, recommends wardrobe reuse, and can include haircut direction, purchasable products, lower-cost alternatives, and sustainability guidance.
 4. **Keep building your wardrobe.** Import an outfit photo to identify its visible garments and create organized, catalog-style wardrobe pieces for future styling sessions. Completed sessions are also available from the home screen.
 
+### Example style collection
+
+<img src="./docs/screenshots/style-collection.jpg"
+     alt="Nano Curator's primary recommendation for a date-night style collection"
+     width="400">
+
 ### Build the style brief
 
 The main workflow keeps photos, wardrobe selection, output options, and practical constraints together in one brief.
