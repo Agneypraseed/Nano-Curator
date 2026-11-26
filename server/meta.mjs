@@ -67,7 +67,7 @@ export function createMetaService(apiKey, model = DEFAULT_META_MODEL) {
 
   const extractWardrobeItems = createSamExtractor({ request, model, responseText });
 
-  async function findGarmentMatches({ image, query }) {
+  async function findGarmentMatches({ image, query, outfit = false }) {
     const response = await request({
       model: DEFAULT_META_MODEL,
       tools: [{ type: 'web_search', search_context_size: 'medium' }],
@@ -75,9 +75,11 @@ export function createMetaService(apiKey, model = DEFAULT_META_MODEL) {
       input: message([
         ...(image ? [asImage(image)] : []),
         asText([
-          'Use current web search to find up to six individual product listings that resemble the item shown or described. Prioritize color, silhouette, and pattern. If there is no exact option, broaden minor details to find close alternatives across stores.',
+          outfit
+            ? 'Use current web search to find up to six individual retailer product listings for the main shoppable pieces of this outfit. Cover several distinct pieces and prioritize the colors, silhouettes, and patterns shown or described. If there is no exact option, broaden minor details to find close alternatives.'
+            : 'Use current web search to find up to six individual product listings that resemble the item shown or described. Prioritize color, silhouette, and pattern. If there is no exact option, broaden minor details to find close alternatives across stores.',
           'Exclude category pages, blogs and image-only pages. Use direct URL strings from actual search results; never invent links or availability. Include a listed price only when the source shows it. Describe the visible similarity without claiming an exact product identification. Keep the fields free of inline citation markers.',
-          'Garment description: ' + JSON.stringify(query),
+          query && (outfit ? 'Outfit description: ' : 'Garment description: ') + JSON.stringify(query),
           'Return a JSON object with an items array. Each item has name, brand (retailer or brand), url (exact URL), priceNote and reason. Use short strings. Return an empty items array if no listings were found.',
         ].join('\n')),
       ]),

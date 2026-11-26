@@ -48,6 +48,8 @@ Choose **Meta SAM 3.1** as the extraction method and upload an outfit photo. To 
 
 Use **Find similar** on a piece to search from its cutout and an editable description. Meta search works with the same key and returns grounded retailer links when available. The **Google Shopping** link uses the description alone. For direct Google Lens reverse-image search, configure both `IMGBB_API_KEY` and `SERPAPI_API_KEY`. Lens uses a publicly hosted copy of the cutout. Check retailer pages for current prices and availability.
 
+In style collection results, **Shop this look → Find real products** uses the same Meta key to search from the look preview and its description. If no Meta key is configured, the button uses Google Lens when both Lens credentials are set.
+
 ## Run locally
 
 Requirements: Node.js 22.12 or newer on an active LTS release.

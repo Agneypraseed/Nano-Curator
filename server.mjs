@@ -62,6 +62,7 @@ const shoppingService = createShoppingService({
   imgbbApiKey: process.env.IMGBB_API_KEY,
   serpApiKey: process.env.SERPAPI_API_KEY,
 });
+const hasLensCredentials = Boolean(process.env.IMGBB_API_KEY?.trim() && process.env.SERPAPI_API_KEY?.trim());
 
 // Inject the local VTON image generator into Gemini so it falls back for target garments
 const configuredKeys = {
@@ -117,7 +118,7 @@ const handleApi = async (req, res) => {
     if (req.method === 'GET' && req.url === '/api/provider-status') {
       sendJson(res, 200, {
         ...Object.fromEntries(Object.entries(configuredKeys).map(([provider, key]) => [provider, Boolean(key)])),
-        visualSearch: Boolean(process.env.IMGBB_API_KEY && process.env.SERPAPI_API_KEY),
+        visualSearch: hasLensCredentials,
       });
       return true;
     }
@@ -174,8 +175,25 @@ const handleApi = async (req, res) => {
     }
 
     if (req.method === 'POST' && req.url === '/api/visual-search') {
-      const { image } = await readJsonBody(req);
-      const shoppingItems = await shoppingService.findShoppingLinks(image);
+      const { image, query, metaApiKey } = await readJsonBody(req);
+      const preview = typeof image === 'string' ? image.trim() : '';
+      const description = typeof query === 'string' ? query.trim().slice(0, 1000) : '';
+      const metaKey = (typeof metaApiKey === 'string' && metaApiKey.trim()) || configuredKeys.meta.trim();
+      if (!preview && !description) {
+        sendJson(res, 400, { error: 'A look preview or description is required.' });
+        return true;
+      }
+      if (!metaKey && !hasLensCredentials) {
+        sendJson(res, 503, { error: 'Set up a Meta API key in Model settings to find products. Google Lens also works when both ImgBB and SerpApi are configured.' });
+        return true;
+      }
+      if (!metaKey && !preview) {
+        sendJson(res, 400, { error: 'Google Lens needs a look preview. Add a Meta API key to search using the look description.' });
+        return true;
+      }
+      const shoppingItems = metaKey
+        ? await createMetaService(metaKey).findGarmentMatches({ image: preview, query: description, outfit: true })
+        : await shoppingService.findShoppingLinks(preview);
       sendJson(res, 200, { shoppingItems });
       return true;
     }

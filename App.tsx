@@ -434,20 +434,27 @@ export default function App() {
 
     setSearchingLookId(lookId);
     setError(null);
+    setNotice('');
 
     try {
-      const result = await visualSearch(targetImage);
-      
-      const nextStyles = analysis.styles.map((style) => 
+      const pieces = targetStyle.shoppingItems.map((item) => item.name).join(', ');
+      const query = [targetStyle.title, targetStyle.description, pieces && 'Suggested pieces: ' + pieces].filter(Boolean).join('\n');
+      const result = await visualSearch(targetImage, query, apiKeys.meta?.trim());
+      if (result.shoppingItems.length === 0) {
+        setNotice('No retailer matches came back for this look.');
+        return;
+      }
+
+      const nextStyles = analysis.styles.map((style) =>
         style.id === lookId ? { ...style, shoppingItems: result.shoppingItems } : style
       );
-      
+
       const nextAnalysis: StyleAnalysis = {
         ...analysis,
         styles: nextStyles,
         shoppingList: dedupeShopping(nextStyles),
       };
-      
+
       setAnalysis(nextAnalysis);
       persistSession(nextAnalysis, styleImages, haircutImage, favoriteLookIds);
     } catch (err) {

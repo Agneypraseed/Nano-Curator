@@ -101,8 +101,8 @@ export const transformLook = (
     credentials,
   });
 
-export const visualSearch = (image: string) =>
-  postJson<{ shoppingItems: ShoppingItem[] }>('/api/visual-search', { image });
+export const visualSearch = (image: string | undefined, query: string, metaApiKey?: string) =>
+  postJson<{ shoppingItems: ShoppingItem[] }>('/api/visual-search', { image, query, metaApiKey });
 
 export const extractWardrobeItems = (
   image: string,
